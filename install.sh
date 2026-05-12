@@ -1,0 +1,122 @@
+#!/bin/bash
+# ─────────────────────────────────────────────
+#  3x-ui Monitor Dashboard — one-line installer
+#  Usage:
+#    curl -fsSL https://raw.githubusercontent.com/phoseinq/xui-monitor/main/install.sh | sudo bash
+# ─────────────────────────────────────────────
+set -e
+
+REPO_RAW="https://raw.githubusercontent.com/phoseinq/xui-monitor/main"
+DIR="/opt/xui-monitor"
+
+R='\033[0;31m'; G='\033[0;32m'; B='\033[0;34m'; Y='\033[1;33m'; C='\033[0;36m'; N='\033[0m'
+ok()   { echo -e "  ${G}✓${N} $1"; }
+info() { echo -e "  ${C}→${N} $1"; }
+err()  { echo -e "  ${R}✗ $1${N}"; exit 1; }
+
+echo -e "\n${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${N}"
+echo -e "${B}   3x-ui Monitor Dashboard Installer   ${N}"
+echo -e "${B}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${N}\n"
+
+[ "$EUID" -ne 0 ] && err "Run as root: sudo bash install.sh"
+command -v python3 &>/dev/null || err "python3 not found — install it first"
+
+# ── 1. Python packages ────────────────────────────────────────────────────────
+echo -e "${Y}[1/4] Installing Python packages...${N}"
+install_pip() {
+  pip3 install "$@" -q 2>/dev/null && return 0
+  info "pip3 failed, trying apt..."
+  apt-get update -qq && apt-get install -y python3-pip -q
+  pip3 install "$@" -q
+}
+install_pip flask requests
+pip3 install tzdata -q 2>/dev/null || true   # for ZoneInfo on older systems
+ok "Python packages ready"
+
+# ── 2. Directory & files ──────────────────────────────────────────────────────
+echo -e "\n${Y}[2/4] Setting up ${DIR}...${N}"
+mkdir -p "$DIR"
+
+download() {
+  info "Downloading $1..."
+  curl -fsSL "${REPO_RAW}/$1" -o "${DIR}/$1" || err "Failed to download $1"
+}
+download dashboard.py
+download monitor.py
+ok "Files downloaded"
+
+# ── 3. Generate secret key ────────────────────────────────────────────────────
+SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+sed -i "s/xui-monitor-2026-change-me/${SECRET}/" "${DIR}/dashboard.py"
+ok "Secret key generated"
+
+# ── 4. Systemd services ───────────────────────────────────────────────────────
+echo -e "\n${Y}[3/4] Creating systemd services...${N}"
+
+PYTHON=$(command -v python3)
+
+cat > /etc/systemd/system/xui-dashboard.service << EOF
+[Unit]
+Description=3x-ui Traffic Dashboard
+After=network.target
+
+[Service]
+ExecStart=${PYTHON} ${DIR}/dashboard.py
+WorkingDirectory=${DIR}
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /etc/systemd/system/xui-monitor.service << EOF
+[Unit]
+Description=3x-ui Traffic Monitor
+After=network.target xui-dashboard.service
+
+[Service]
+ExecStart=${PYTHON} ${DIR}/monitor.py
+WorkingDirectory=${DIR}
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable xui-dashboard xui-monitor -q
+systemctl restart xui-dashboard xui-monitor
+ok "Services started"
+
+# ── 5. Done ───────────────────────────────────────────────────────────────────
+sleep 2
+IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+[ -z "$IP" ] && IP="YOUR_SERVER_IP"
+
+echo -e "\n${Y}[4/4] Verifying...${N}"
+if systemctl is-active --quiet xui-dashboard; then
+  ok "xui-dashboard running"
+else
+  echo -e "  ${R}✗ xui-dashboard failed to start — check logs below${N}"
+  journalctl -u xui-dashboard -n 20 --no-pager
+  exit 1
+fi
+
+echo -e "\n${G}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${N}"
+echo -e "${G}  Done! Dashboard is up and running.${N}"
+echo -e "${G}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${N}\n"
+
+echo -e "  ${C}URL:${N}      http://${IP}:5000"
+echo -e "  ${C}First run:${N} Open the URL → register your admin account"
+echo -e "  ${C}Settings:${N}  Enter your 3x-ui panel URL, username & password\n"
+
+echo -e "  ${Y}Useful commands:${N}"
+echo -e "   • Live logs:   journalctl -u xui-dashboard -f"
+echo -e "   • Monitor log: journalctl -u xui-monitor -f"
+echo -e "   • Restart:     systemctl restart xui-dashboard xui-monitor"
+echo -e "   • Stop:        systemctl stop xui-dashboard xui-monitor"
+echo -e "   • Uninstall:   systemctl disable --now xui-dashboard xui-monitor && rm -rf ${DIR}\n"
