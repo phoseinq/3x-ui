@@ -133,23 +133,35 @@ Both services start on boot and restart automatically on failure.
 
 ---
 
-### CLI commands
+### xui-mon CLI
+
+The installer adds `xui-mon` — a management CLI for controlling the dashboard from the terminal.
 
 ```bash
-# Live dashboard logs
-journalctl -u xui-dashboard -f
+xui-mon status               # show service status + current settings
+xui-mon start                # start both services
+xui-mon stop                 # stop both services
+xui-mon restart              # restart both services
+xui-mon user <new-username>  # change admin username (no restart needed)
+xui-mon pass <new-password>  # change admin password (no restart needed)
+xui-mon port <number>        # change dashboard port (restarts dashboard)
+xui-mon https on --cert /path/fullchain.pem --key /path/privkey.pem   # enable HTTPS
+xui-mon https off            # disable HTTPS (back to HTTP)
+xui-mon remove               # stop, disable, and remove both services (data kept)
+```
 
-# Live monitor logs
-journalctl -u xui-monitor -f
+**Notes:**
+- Run as root (`sudo xui-mon ...`)
+- `xui-mon remove` asks for confirmation before removing services
+- `xui-mon https on` will prompt for cert/key paths if not supplied as flags
 
-# Restart both services
-systemctl restart xui-dashboard xui-monitor
+---
 
-# Stop both services
-systemctl stop xui-dashboard xui-monitor
+### Service logs
 
-# Uninstall
-systemctl disable --now xui-dashboard xui-monitor && rm -rf /opt/xui-monitor
+```bash
+journalctl -u xui-dashboard -f   # live dashboard logs
+journalctl -u xui-monitor -f     # live monitor logs
 ```
 
 ---
@@ -274,23 +286,35 @@ curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui/main/install.sh | su
 
 ---
 
-### دستورات مفید
+### ابزار مدیریتی xui-mon
+
+نصب‌کننده دستور `xui-mon` را در اختیار می‌گذارد — یک ابزار مدیریتی برای کنترل داشبورد از طریق خط فرمان.
 
 ```bash
-# مشاهده لاگ زنده داشبورد
-journalctl -u xui-dashboard -f
+xui-mon status               # نمایش وضعیت سرویس‌ها و تنظیمات جاری
+xui-mon start                # راه‌اندازی هر دو سرویس
+xui-mon stop                 # توقف هر دو سرویس
+xui-mon restart              # راه‌اندازی مجدد هر دو سرویس
+xui-mon user <نام-کاربری>    # تغییر نام کاربری مدیر (نیاز به راه‌اندازی مجدد ندارد)
+xui-mon pass <رمز-عبور>      # تغییر رمز عبور مدیر (نیاز به راه‌اندازی مجدد ندارد)
+xui-mon port <عدد>           # تغییر درگاه داشبورد (داشبورد مجدداً راه‌اندازی می‌شود)
+xui-mon https on --cert /path/fullchain.pem --key /path/privkey.pem   # فعال‌سازی HTTPS
+xui-mon https off            # غیرفعال‌سازی HTTPS (بازگشت به HTTP)
+xui-mon remove               # توقف، غیرفعال‌سازی و حذف سرویس‌ها (داده‌ها حفظ می‌شوند)
+```
 
-# مشاهده لاگ زنده مانیتور
-journalctl -u xui-monitor -f
+**نکات:**
+- به عنوان root اجرا کنید (`sudo xui-mon ...`)
+- دستور `xui-mon remove` قبل از حذف سرویس‌ها تأییدیه می‌خواهد
+- دستور `xui-mon https on` در صورت عدم ارائه مسیر گواهینامه، آن را از شما می‌پرسد
 
-# راه‌اندازی مجدد هر دو سرویس
-systemctl restart xui-dashboard xui-monitor
+---
 
-# توقف هر دو سرویس
-systemctl stop xui-dashboard xui-monitor
+### لاگ سرویس‌ها
 
-# حذف کامل برنامه
-systemctl disable --now xui-dashboard xui-monitor && rm -rf /opt/xui-monitor
+```bash
+journalctl -u xui-dashboard -f   # لاگ زنده داشبورد
+journalctl -u xui-monitor -f     # لاگ زنده مانیتور
 ```
 
 ---

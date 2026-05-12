@@ -43,6 +43,9 @@ download() {
 }
 download dashboard.py
 download monitor.py
+download xui-mon.py
+chmod +x "${DIR}/xui-mon.py"
+ln -sf "${DIR}/xui-mon.py" /usr/local/bin/xui-mon
 ok "Files downloaded"
 
 # â”€â”€ 3. Generate secret key â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -114,10 +117,17 @@ echo -e "  ${C}URL:${N}      http://${IP}:5000"
 echo -e "  ${C}First run:${N} Open the URL â†’ register your admin account"
 echo -e "  ${C}Settings:${N}  Enter your 3x-ui panel URL, username & password\n"
 
-echo -e "  ${Y}Useful commands:${N}"
-echo -e "   â€¢ Live logs:   journalctl -u xui-dashboard -f"
-echo -e "   â€¢ Monitor log: journalctl -u xui-monitor -f"
-echo -e "   â€¢ Restart:     systemctl restart xui-dashboard xui-monitor"
-echo -e "   â€¢ Stop:        systemctl stop xui-dashboard xui-monitor"
-echo -e "   â€¢ Uninstall:   systemctl disable --now xui-dashboard xui-monitor && rm -rf ${DIR}\n"
+echo -e "  ${Y}Management CLI (xui-mon):${N}"
+echo -e "   â€¢ Status:      xui-mon status"
+echo -e "   â€¢ Restart:     xui-mon restart"
+echo -e "   â€¢ Change user: xui-mon user <new-username>"
+echo -e "   â€¢ Change pass: xui-mon pass <new-password>"
+echo -e "   â€¢ Change port: xui-mon port <number>"
+echo -e "   â€¢ HTTPS on:    xui-mon https on --cert /path/fullchain.pem --key /path/privkey.pem"
+echo -e "   â€¢ Remove:      xui-mon remove
+"
+echo -e "  ${Y}Service logs:${N}"
+echo -e "   â€¢ Dashboard:   journalctl -u xui-dashboard -f"
+echo -e "   â€¢ Monitor:     journalctl -u xui-monitor -f
+"
 
