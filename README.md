@@ -45,6 +45,15 @@
 
 ### Requirements & libraries
 
+**System CLI tools** (pre-installed on Ubuntu / Debian):
+
+| Tool | Purpose |
+|---|---|
+| `curl` | Downloads and runs the installer |
+| `pip3` | Installs Python packages (`flask`, `requests`, `tzdata`) |
+| `systemctl` | Manages `xui-dashboard` and `xui-monitor` services |
+| `journalctl` | Views live service logs |
+
 **Third-party packages** (installed automatically by the installer):
 
 | Package | Version | Purpose |
@@ -176,6 +185,15 @@ MIT — see [LICENSE](LICENSE).
 ---
 
 ### پیش‌نیازها و کتابخانه‌ها
+
+**ابزارهای CLI سیستم** (از پیش روی Ubuntu / Debian نصب هستند):
+
+| ابزار | کاربرد |
+|---|---|
+| `curl` | دانلود و اجرای نصب‌کننده |
+| `pip3` | نصب بسته‌های پایتون (`flask`، `requests`، `tzdata`) |
+| `systemctl` | مدیریت سرویس‌های `xui-dashboard` و `xui-monitor` |
+| `journalctl` | مشاهده لاگ زنده سرویس‌ها |
 
 **بسته‌های خارجی** (توسط نصب‌کننده به‌طور خودکار نصب می‌شوند):
 
