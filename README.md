@@ -43,6 +43,19 @@
 
 ---
 
+### Requirements
+
+| Requirement | Notes |
+|---|---|
+| Python 3.8+ | Must be installed on the server (`python3 --version`) |
+| `flask` | Web framework — installed automatically by the installer |
+| `requests` | HTTP client for panel API — installed automatically |
+| `tzdata` | Timezone data — installed automatically (needed on some older systems) |
+
+> The installer handles all Python packages. You only need `python3` pre-installed.
+
+---
+
 ### Installation
 
 Run this single command on your Ubuntu / Debian server (as root):
@@ -143,6 +156,19 @@ MIT — see [LICENSE](LICENSE).
 - 🔒 **پشتیبانی از HTTPS** — فعال‌سازی اختیاری با گواهینامه دلخواه
 - 🌐 **آگاهی از منطقه زمانی** — تمام زمان‌ها در منطقه زمانی تنظیم‌شده نمایش داده می‌شوند
 - 👤 **چند مدیر** — حساب‌های مدیریتی با رمزنگاری PBKDF2
+
+---
+
+### پیش‌نیازها
+
+| پیش‌نیاز | توضیح |
+|---|---|
+| Python 3.8 یا بالاتر | باید از پیش روی سرور نصب باشد (`python3 --version`) |
+| `flask` | چارچوب وب — توسط نصب‌کننده به‌طور خودکار نصب می‌شود |
+| `requests` | کتابخانه HTTP برای ارتباط با API پنل — به‌طور خودکار نصب می‌شود |
+| `tzdata` | داده‌های منطقه زمانی — به‌طور خودکار نصب می‌شود (برای برخی سیستم‌های قدیمی‌تر) |
+
+> نصب‌کننده تمام بسته‌های پایتون را خودکار نصب می‌کند. فقط `python3` باید از پیش روی سرور موجود باشد.
 
 ---
 
