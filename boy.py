@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Boy — management CLI for xui-dashboard & xui-monitor.
 
@@ -29,7 +29,6 @@ APP_DB   = "/opt/xui-monitor/app.db"
 SVC_DASH = "xui-dashboard"
 SVC_MON  = "xui-monitor"
 
-# ── ANSI ──────────────────────────────────────────────────────────────────────
 RED  = "\033[0;31m";  GRN  = "\033[0;32m";  YLW  = "\033[0;33m"
 BLU  = "\033[0;34m";  CYN  = "\033[0;36m";  DIM  = "\033[2m"
 BLD  = "\033[1m";     RST  = "\033[0m";      UL   = "\033[4m"
@@ -57,7 +56,6 @@ def confirm(prompt) -> bool:
     except (KeyboardInterrupt, EOFError):
         print(); return False
 
-# ── DB ────────────────────────────────────────────────────────────────────────
 def _db():
     c = sqlite3.connect(APP_DB)
     c.row_factory = sqlite3.Row
@@ -97,7 +95,6 @@ def db_set_password(new_pass: str):
     with _db() as c:
         c.execute("UPDATE admin_users SET password=?", (hashed,))
 
-# ── systemctl ─────────────────────────────────────────────────────────────────
 def _svc(*args) -> tuple[int, str]:
     r = subprocess.run(["systemctl", *args], capture_output=True, text=True)
     return r.returncode, (r.stdout + r.stderr).strip()
@@ -112,8 +109,6 @@ def svc_do(svc: str, action: str):
         ok(f"{_c(BLD, label):25}  {action}ed")
     else:
         warn(f"{label}: {out or 'no output'}")
-
-# ── commands ──────────────────────────────────────────────────────────────────
 
 def cmd_status():
     head("Service status")
@@ -151,7 +146,6 @@ def cmd_status():
     sep()
     print()
 
-
 def cmd_start():
     head("Start services"); sep()
     svc_do(SVC_DASH, "start")
@@ -169,7 +163,6 @@ def cmd_restart():
     svc_do(SVC_DASH, "restart")
     svc_do(SVC_MON,  "restart")
     print()
-
 
 def cmd_remove():
     head("Remove services"); sep()
@@ -194,7 +187,6 @@ def cmd_remove():
     ok("Services removed.  Data at /opt/xui-monitor/ is intact.")
     print()
 
-
 def cmd_user(new_name: str = ""):
     head("Change username"); sep()
     old, _ = db_get_admin()
@@ -208,7 +200,6 @@ def cmd_user(new_name: str = ""):
     ok(f"Username  {_c(DIM,old)}  →  {_c(BLD,new_name)}")
     info("Takes effect on next login — no restart needed.")
     print()
-
 
 def cmd_pass(new_pass: str = ""):
     head("Change password"); sep()
@@ -224,7 +215,6 @@ def cmd_pass(new_pass: str = ""):
     ok("Password updated  (PBKDF2-SHA256)")
     info("Takes effect on next login — no restart needed.")
     print()
-
 
 def cmd_port(new_port: str = ""):
     head("Change port"); sep()
@@ -243,7 +233,6 @@ def cmd_port(new_port: str = ""):
     info("Restarting dashboard to apply…")
     svc_do(SVC_DASH, "restart")
     print()
-
 
 def cmd_https(args: list):
     head("HTTPS / TLS"); sep()
@@ -294,9 +283,6 @@ def cmd_https(args: list):
         print(); return
 
     fail(f"Unknown option: {sub!r}  — use  on  or  off")
-
-
-# ── help ──────────────────────────────────────────────────────────────────────
 
 HELP_TOPICS = {
 "status": """\
@@ -403,9 +389,6 @@ def cmd_help(topic: str = ""):
     boy help https
 """)
 
-
-# ── interactive menu ──────────────────────────────────────────────────────────
-
 MENU_ITEMS = [
     ("Status",           lambda: cmd_status()),
     ("Restart services", lambda: cmd_restart()),
@@ -440,9 +423,6 @@ def interactive():
                 warn("Invalid choice — enter a number from the list.\n")
         except ValueError:
             warn("Invalid choice.\n")
-
-
-# ── entry point ───────────────────────────────────────────────────────────────
 
 def main():
     args = sys.argv[1:]

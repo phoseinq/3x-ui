@@ -26,9 +26,6 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-
-# ── Settings (read from app.db, cached 60 s) ──────────────────────────────────
-
 _cfg_cache: dict = {"ts": 0.0, "data": {}}
 
 _DEFAULTS = {
@@ -64,9 +61,6 @@ def check_interval() -> int:   return max(10, int(_cfg("check_interval") or 30))
 def grace_bytes()    -> float: return max(0, int(_cfg("grace_mb") or 100)) * 1024 * 1024
 def reset_ratio()    -> float: return float(_cfg("reset_ratio") or 0.5)
 
-
-# ── DB helpers ────────────────────────────────────────────────────────────────
-
 def init_db():
     with sqlite3.connect(DB_FILE) as c:
         c.execute("""
@@ -98,7 +92,7 @@ def init_db():
         """)
         c.execute("CREATE INDEX IF NOT EXISTS idx_snap_ts    ON snapshots(ts)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_snap_email ON snapshots(email)")
-
+        c.execute("CREATE INDEX IF NOT EXISTS idx_snap_ts_email_total ON snapshots(ts, email, total)")
 
 def save_snapshot(rows: list[dict]):
     ts = int(time.time())
@@ -110,16 +104,13 @@ def save_snapshot(rows: list[dict]):
               r["quota"], int(r["expired"]), int(r["enable"])) for r in rows],
         )
 
-
 def log_restart(reason: str):
     with sqlite3.connect(DB_FILE) as c:
         c.execute("INSERT INTO restarts(ts,reason) VALUES(?,?)", (int(time.time()), reason))
 
-
 def get_handled() -> set[str]:
     with sqlite3.connect(DB_FILE) as c:
         return {r[0] for r in c.execute("SELECT email FROM handled").fetchall()}
-
 
 def add_handled(clients: list[dict]):
     with sqlite3.connect(DB_FILE) as c:
@@ -128,7 +119,6 @@ def add_handled(clients: list[dict]):
             "VALUES(?, unixepoch(), ?)",
             [(cl["email"], cl["total"]) for cl in clients],
         )
-
 
 def cleanup_handled(clients: list[dict]):
     handled = get_handled()
@@ -147,11 +137,7 @@ def cleanup_handled(clients: list[dict]):
             c.executemany("DELETE FROM handled WHERE email=?", [(e,) for e in renewed])
         log.info("Renewed users removed from handled: %s", ", ".join(renewed))
 
-
-# ── Panel session ─────────────────────────────────────────────────────────────
-
 _session = requests.Session()
-
 
 def _new_session() -> requests.Session:
     global _session
@@ -160,11 +146,9 @@ def _new_session() -> requests.Session:
     _session = s
     return _session
 
-
 def _save_cookie():
     Path(COOKIE_FILE).parent.mkdir(parents=True, exist_ok=True)
     Path(COOKIE_FILE).write_text(json.dumps(dict(_session.cookies)))
-
 
 def _load_cookie() -> bool:
     try:
@@ -172,7 +156,6 @@ def _load_cookie() -> bool:
         return True
     except Exception:
         return False
-
 
 def login() -> bool:
     _new_session()
@@ -190,7 +173,6 @@ def login() -> bool:
     except RequestException as e:
         log.error("Login request failed: %s", e)
     return False
-
 
 def api_get(path: str) -> dict | None:
     base = panel_url()
@@ -213,7 +195,6 @@ def api_get(path: str) -> dict | None:
             return None
     return None
 
-
 def restart_xray(reason: str) -> bool:
     log.warning("Restarting Xray core — %s", reason)
     try:
@@ -228,9 +209,6 @@ def restart_xray(reason: str) -> bool:
     else:
         log.error("Xray restart failed — will retry next cycle.")
     return ok
-
-
-# ── Core logic ────────────────────────────────────────────────────────────────
 
 def parse_clients(inbounds: list) -> list[dict]:
     now_ms  = int(time.time() * 1000)
@@ -258,7 +236,6 @@ def parse_clients(inbounds: list) -> list[dict]:
                 "enable":  bool(c.get("enable", True)),
             })
     return clients
-
 
 def check_once() -> bool:
     data = api_get("/panel/api/inbounds/list")
@@ -292,7 +269,6 @@ def check_once() -> bool:
     add_handled(new_offenders)
     return True
 
-
 def main():
     init_db()
     _load_cookie() or login()
@@ -306,7 +282,6 @@ def main():
         except Exception as e:
             log.exception("Unexpected error: %s", e)
         time.sleep(check_interval())
-
 
 if __name__ == "__main__":
     main()

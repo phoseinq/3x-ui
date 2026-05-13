@@ -32,11 +32,6 @@ app = Flask(__name__, static_folder=STATIC_DIR)
 app.secret_key = SECRET_KEY
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Database helpers
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 def app_db():
     c = sqlite3.connect(APP_DB)
     c.row_factory = sqlite3.Row
@@ -115,11 +110,6 @@ def get_all_settings():
         rows = c.execute("SELECT key,value FROM settings").fetchall()
     return {r["key"]: r["value"] for r in rows}
 
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Admin users + auth
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 def hash_password(pw: str) -> str:
     salt = os.urandom(16).hex()
     h = hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 260_000)
@@ -130,7 +120,6 @@ def _verify_password(pw: str, stored: str) -> bool:
         _, salt, expected = stored.split("$", 2)
         h = hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 260_000)
         return h.hex() == expected
-    # legacy plain SHA-256 â€” accept and upgrade below
     return hashlib.sha256(pw.encode()).hexdigest() == stored
 
 def count_admins():
@@ -146,7 +135,6 @@ def check_credentials(username: str, password: str) -> bool:
         return False
     if not _verify_password(password, row["password"]):
         return False
-    # auto-upgrade legacy SHA-256 hash to PBKDF2
     if not row["password"].startswith("pbkdf2$"):
         with app_db() as c:
             c.execute("UPDATE admin_users SET password=? WHERE username=?",
@@ -168,11 +156,6 @@ def require_login(f):
         return f(*a, **kw)
     return wrapped
 
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Timezone
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 _tz_cache = {"name": "Asia/Tehran", "ts": 0.0}
 
 def _get_tz_name():
@@ -190,11 +173,6 @@ def iran_fmt(ts):
         except Exception:
             pass
     return datetime.utcfromtimestamp(ts + 3.5 * 3600).strftime("%Y-%m-%d %H:%M")
-
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Traffic DB queries
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 def latest_snapshot():
     with traffic_db() as c:
@@ -226,7 +204,6 @@ def snapshot_summary():
     return {"total":total,"active":active,"over":over,"expired":expired,
             "blocked":len(handled_emails),"total_bytes":total_bytes,"total_quota":total_quota}
 
-
 def paginated_users(page=1, per_page=10, filter_="all", search="", sort="total", order="desc"):
     with traffic_db() as c:
         ts = c.execute("SELECT MAX(ts) FROM snapshots").fetchone()[0]
@@ -254,13 +231,11 @@ def paginated_users(page=1, per_page=10, filter_="all", search="", sort="total",
     elif sort == "quota": rows.sort(key=lambda r: r["quota"], reverse=reverse)
     elif sort == "pct":   rows.sort(key=lambda r: r["total"]/r["quota"] if r["quota"] > 0 else 0, reverse=reverse)
     elif sort == "total": rows.sort(key=lambda r: r["total"], reverse=reverse)
-    # else: keep original panel order (id ASC from DB)
     total_count = len(rows)
     pages = max(1, (total_count + per_page - 1) // per_page)
     page  = max(1, min(page, pages))
     start = (page - 1) * per_page
     return {"users":rows[start:start+per_page],"total":total_count,"pages":pages,"page":page}
-
 
 def user_snapshot(email):
     with traffic_db() as c:
@@ -339,15 +314,9 @@ def handled_list():
     except Exception:
         return []
 
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Online count (cached 25 s)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 _online_cache = {"ts": 0.0, "count": 0, "emails": []}
 _user_online_since: dict = {}   # email -> unix timestamp when they first came online
 
-# â”€â”€ Simple TTL cache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _ttl_cache: dict = {}
 
 def _cached(key: str, ttl: float, fn):
@@ -383,7 +352,6 @@ def fetch_online():
                 _online_cache.update({"ts": now, "count": 0, "emails": []})
                 return 0, []
             ts_new, ts_old = ts_rows[0]["ts"], ts_rows[1]["ts"]
-            # only "online" if latest snapshot is recent (< 3 min)
             if now - ts_new > 180:
                 _online_cache.update({"ts": now, "count": 0, "emails": []})
                 return 0, []
@@ -398,7 +366,6 @@ def fetch_online():
         emails = [r["email"].lower() for r in rows]
         count  = len(emails)
         _online_cache.update({"ts": now, "count": count, "emails": emails})
-        # maintain per-user online-since timestamps
         now_set  = set(emails)
         prev_set = set(_user_online_since)
         for e in prev_set - now_set:
@@ -416,11 +383,6 @@ def fetch_online():
     except Exception:
         _online_cache["ts"] = now
         return _online_cache["count"], _online_cache["emails"]
-
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Server stats (cached 15 s)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 def _ensure_server_table():
     with traffic_db() as c:
@@ -441,7 +403,6 @@ def _ensure_server_table():
         c.execute("CREATE INDEX IF NOT EXISTS idx_srv_ts ON server_snapshots(ts)")
 
 _ensure_server_table()
-
 
 def _save_server_snapshot(obj: dict):
     """Save snapshot using OS sources so history matches live display."""
@@ -464,7 +425,6 @@ def _save_server_snapshot(obj: dict):
             )
     except Exception:
         pass
-
 
 def server_history(metric="cpu", hours=24, bucket_min=60):
     since = int(time.time()) - hours * 3600
@@ -514,11 +474,6 @@ def server_history(metric="cpu", hours=24, bucket_min=60):
              "value": round(r["val"] or 0, 2),
              "unit": "%"} for r in rows]
 
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Live bandwidth â€” reads /proc/net/dev directly (no 3x-ui call)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 _bw_prev:  dict = {"ts": 0.0, "sent": 0, "recv": 0}
 _bw_cache: dict = {"ts": 0.0, "up": 0.0, "down": 0.0}
 
@@ -539,9 +494,6 @@ def _read_net_bytes() -> tuple[int, int]:
         pass
     return sent, recv
 
-# Background thread reads /proc/stat every 1 s into a rolling 60-entry deque.
-# The API never touches /proc/stat directly â€” it just reads from the deque.
-# This eliminates all race conditions and smooths out instantaneous spikes.
 import collections as _col
 _cpu_buf  = _col.deque(maxlen=60)   # up to 60 s of readings
 _cpu_prev = {"idle": 0, "total": 0}
@@ -614,7 +566,6 @@ def get_live_bandwidth() -> dict:
     _bw_cache.update({"ts": now, "up": up, "down": dn})
     return _bw_cache
 
-
 _server_cache: dict = {"ts": 0.0, "save_ts": 0.0, "data": {}}
 
 def fetch_server_stats() -> dict:
@@ -646,11 +597,6 @@ def fetch_server_stats() -> dict:
         _server_cache["ts"] = now
         return _server_cache["data"]
 
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Auto-prune old snapshots (runs every hour)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 def _prune_by_size():
     max_mb = int(get_setting("max_db_mb", "0"))
     if max_mb <= 0:
@@ -658,7 +604,6 @@ def _prune_by_size():
     size_mb = os.path.getsize(TRAFFIC_DB) / 1024**2 if os.path.exists(TRAFFIC_DB) else 0
     if size_mb <= max_mb:
         return
-    # delete oldest 10% of snapshots until under limit
     with traffic_db() as c:
         total = c.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0]
         chunk = max(total // 10, 1000)
@@ -704,7 +649,6 @@ def _prune_loop():
 
 threading.Thread(target=_prune_loop, daemon=True).start()
 
-
 def _panel_cleanup_loop():
     _last_day = [None]
     while True:
@@ -735,11 +679,6 @@ def _panel_cleanup_loop():
             pass
 
 threading.Thread(target=_panel_cleanup_loop, daemon=True, name="panel-cleanup").start()
-
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Panel API helpers (used by panel-cleanup endpoints)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 _panel_sess_obj = _req.Session()
 
@@ -775,7 +714,6 @@ def _panel_api(method: str, path: str, **kwargs):
             return None
     return None
 
-
 def fetch_panel_candidates(old_days: int = 30):
     """
     Return (list_of_candidates, error_str).
@@ -806,7 +744,6 @@ def fetch_panel_candidates(old_days: int = 30):
             st     = stats.get(email, {})
             total  = float(st.get("up", 0)) + float(st.get("down", 0))
 
-            # expired = has a valid expiry within the 90-day window
             expired    = bool(exp_ms and exp_ms > cap_ms and exp_ms < now_ms)
             over_quota = quota > 0 and total > quota
             aged       = expired and exp_ms < old_ms   # expired > old_days ago
@@ -834,18 +771,12 @@ def fetch_panel_candidates(old_days: int = 30):
             })
     return candidates, None
 
-
 def delete_panel_client(inbound_id: int, client_id: str) -> tuple:
     """Delete one client from panel. Returns (success, message)."""
     data = _panel_api("POST", f"/panel/api/inbounds/{inbound_id}/delClient/{client_id}")
     if data and data.get("success"):
         return True, "ok"
     return False, (data or {}).get("msg", "unknown error")
-
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Shared UI â€” CSS
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 BASE_STYLE = r"""
 <style>
@@ -916,7 +847,6 @@ button.sb-link{width:100%;background:none;border:none;cursor:pointer;text-align:
 .refresh-badge{display:flex;align-items:center;gap:3px;font-size:.7rem;
   color:var(--muted);background:var(--card);border:1px solid var(--border);
   border-radius:99px;padding:3px 9px;white-space:nowrap}
-
 
 /* â”€â”€ Buttons / chips â”€â”€ */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;
@@ -1150,8 +1080,6 @@ tbody tr:hover{background:#0d172a;box-shadow:inset 3px 0 0 var(--blue)}
 </style>
 """
 
-# â”€â”€ Shared JS (sidebar + clock + toast) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 COMMON_JS = r"""
 <script>
 function toggleSB(){
@@ -1174,16 +1102,12 @@ function toast(msg, err=false){
 <div id="toast" class="toast"></div>
 """
 
-
-# â”€â”€ Topbar + sidebar builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 _NAV = [
     ("dashboard", "/",         "Dashboard",
      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'),
     ("settings",  "/settings", "Settings",
      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'),
 ]
-
 
 def _refresh_select(current):
     opts = [("5","5s"), ("10","10s"), ("30","30s"), ("60","1m"), ("300","5m")]
@@ -1199,7 +1123,6 @@ def _refresh_select(current):
         f'cursor:pointer;outline:none;margin-left:3px;max-width:38px">'
         f'{inner}</select>'
     )
-
 
 def topbar(extra="", page="dashboard", refresh_sel="", username=""):
     nav_html = ""
@@ -1269,11 +1192,6 @@ def topbar(extra="", page="dashboard", refresh_sel="", username=""):
 
 """
 
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Auth pages
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 REGISTER_HTML = """<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Setup â€” 3x-ui Monitor</title>
 __STYLE__</head><body>
@@ -1322,11 +1240,6 @@ document.querySelector('form').addEventListener('submit',function(){
 });
 </script>
 </div></div></body></html>"""
-
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Main dashboard
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 MAIN_HTML = r"""<!DOCTYPE html>
 <html>
@@ -2111,11 +2024,6 @@ setInterval(()=>{if(document.getElementById('view-online').classList.contains('a
 </script>
 </body></html>"""
 
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# User detail page
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 USER_HTML = r"""<!DOCTYPE html>
 <html>
 <head>
@@ -2294,11 +2202,6 @@ refresh(); loadChart();
 setInterval(refresh,30000); setInterval(loadChart,60000);
 </script>
 </body></html>"""
-
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Settings page
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 SETTINGS_HTML = r"""<!DOCTYPE html>
 <html>
@@ -2922,11 +2825,6 @@ async function panelCleanupExecute(){
 </script>
 </body></html>"""
 
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Render helpers
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 def _page_size_opts(current):
     c = int(current)
     sizes = [10, 20, 50, 100]
@@ -2936,7 +2834,6 @@ def _page_size_opts(current):
         f'<option value="{s}"{" selected" if s==c else ""}>{s}</option>'
         for s in sizes
     )
-
 
 def render_main():
     s  = get_all_settings()
@@ -2954,7 +2851,6 @@ def render_main():
             .replace("__TRAFFIC_LOG__",   s.get("traffic_log_enabled", "0"))
             .replace("__ONLINE_LOG__",    s.get("online_log_enabled", "0")))
 
-
 def render_user(email):
     s = get_all_settings()
     back = """<a href="/" class="btn" style="margin-left:5px">
@@ -2969,7 +2865,6 @@ def render_user(email):
             .replace("__TZ__",          s.get("timezone", "Asia/Tehran"))
             .replace("__EMAIL__",       email)
             .replace("__EMAIL_JSON__",  json.dumps(email)))
-
 
 def render_settings():
     s  = get_all_settings()
@@ -3007,11 +2902,6 @@ def render_settings():
             .replace("__PANEL_CLN_1__",   " selected" if s.get("panel_cleanup_enabled","0")=="1" else "")
             .replace("__C0__", c0).replace("__C1__", c1))
 
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-# Routes
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if count_admins() > 0:
@@ -3036,7 +2926,6 @@ def register():
         REGISTER_HTML.replace("__STYLE__", BASE_STYLE), error=error, username=username
     )
 
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if count_admins() == 0:
@@ -3055,49 +2944,39 @@ def login():
         LOGIN_HTML.replace("__STYLE__", BASE_STYLE), error=error
     )
 
-
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
-
 
 @app.route("/")
 @require_login
 def index():
     return render_main()
 
-
 @app.route("/user/<path:email>")
 @require_login
 def user_detail(email):
     return render_user(email)
-
 
 @app.route("/settings")
 @require_login
 def settings():
     return render_settings()
 
-
 @app.route("/static/<path:filename>")
 def static_files(filename):
     return send_from_directory(STATIC_DIR, filename)
-
-
-# â”€â”€ API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @app.route("/api/snapshot")
 @require_login
 def api_snapshot():
     return jsonify(latest_snapshot())
 
-
 @app.route("/api/summary")
 @require_login
 def api_summary():
     return jsonify(_cached("summary", 30, snapshot_summary))
-
 
 @app.route("/api/users")
 @require_login
@@ -3111,12 +2990,10 @@ def api_users():
     key = f"users:{page}:{per_page}:{filter_}:{search}:{sort}:{order}"
     return jsonify(_cached(key, 15, lambda: paginated_users(page, per_page, filter_, search, sort, order)))
 
-
 @app.route("/api/user/snapshot")
 @require_login
 def api_user_snapshot():
     return jsonify(user_snapshot(request.args.get("email", "")))
-
 
 @app.route("/api/user/hourly")
 @require_login
@@ -3126,25 +3003,21 @@ def api_user_hourly():
     hours = min(max(int(request.args.get("hours", 24)),    1),  168)
     return jsonify(user_hourly(email, hours=hours, bucket_min=gran))
 
-
 @app.route("/api/restarts")
 @require_login
 def api_restarts():
     return jsonify(_cached("restarts", 30, recent_restarts))
-
 
 @app.route("/api/handled")
 @require_login
 def api_handled():
     return jsonify(_cached("handled", 20, handled_list))
 
-
 @app.route("/api/online")
 @require_login
 def api_online():
     count, emails = fetch_online()
     return jsonify({"count": count, "emails": emails})
-
 
 @app.route("/api/online/durations")
 @require_login
@@ -3159,7 +3032,6 @@ def api_online_durations():
     result.sort(key=lambda x: -x["duration_sec"])
     return jsonify(result)
 
-
 @app.route("/api/online/history")
 @require_login
 def api_online_history():
@@ -3172,7 +3044,6 @@ def api_online_history():
             {"b": bucket, "c": cutoff}
         ).fetchall()
     return jsonify([{"ts": r["t"], "count": int(r["cnt"])} for r in rows])
-
 
 @app.route("/api/settings", methods=["POST"])
 @require_login
@@ -3193,7 +3064,6 @@ def api_save_settings():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 400
 
-
 @app.route("/api/restart-dashboard", methods=["POST"])
 @require_login
 def api_restart_dashboard():
@@ -3204,12 +3074,10 @@ def api_restart_dashboard():
     threading.Thread(target=_do, daemon=True).start()
     return jsonify({"ok": True})
 
-
 @app.route("/api/live/bandwidth")
 @require_login
 def api_live_bandwidth():
     return jsonify(get_live_bandwidth())
-
 
 @app.route("/api/live/stats")
 @require_login
@@ -3224,7 +3092,6 @@ def api_live_stats():
         "bw":   {"up": round(bw["up"], 1), "down": round(bw["down"], 1)},
     })
 
-
 @app.route("/api/data-range")
 @require_login
 def api_data_range():
@@ -3238,7 +3105,6 @@ def api_data_range():
                 "oldest": iran_fmt(oldest), "newest": iran_fmt(newest)}
     return jsonify(_cached("data_range", 30, _fetch))
 
-
 @app.route("/api/debug/online")
 @require_login
 def api_debug_online():
@@ -3248,7 +3114,6 @@ def api_debug_online():
     out = {"panel_url": panel_url, "steps": []}
     try:
         s = _req.Session()
-        # fresh login (no cookie)
         lr = s.post(f"{panel_url}/login", json={"username": pu, "password": pp}, timeout=10)
         out["login_status"] = lr.status_code
         out["login_raw"]    = lr.text[:300]
@@ -3264,12 +3129,10 @@ def api_debug_online():
         out["error"] = str(e)
     return jsonify(out)
 
-
 @app.route("/api/server-stats")
 @require_login
 def api_server_stats():
     return jsonify(fetch_server_stats())
-
 
 @app.route("/api/server/data-range")
 @require_login
@@ -3282,7 +3145,6 @@ def api_server_data_range():
         return jsonify({"hours": 0})
     return jsonify({"hours": round((row["newest"] - row["oldest"]) / 3600, 1)})
 
-
 @app.route("/api/server/history")
 @require_login
 def api_server_history():
@@ -3293,7 +3155,6 @@ def api_server_history():
         return jsonify([])
     return jsonify(server_history(metric=metric, hours=hours, bucket_min=gran))
 
-
 @app.route("/api/traffic/hourly")
 @require_login
 def api_traffic_hourly():
@@ -3301,14 +3162,13 @@ def api_traffic_hourly():
     gran  = min(max(int(request.args.get("gran",  60)), 10), 1440)
     return jsonify(_cached(f"traffic_hourly:{hours}:{gran}", 60, lambda: total_hourly(hours=hours, bucket_min=gran)))
 
-
 @app.route("/api/traffic/top-users")
 @require_login
 def api_traffic_top_users():
     hours = min(max(int(request.args.get("hours", 24)), 1), 720)
     limit = min(max(int(request.args.get("limit", 15)), 1), 100)
-    return jsonify(_cached(f"top_users:{hours}:{limit}", 60, lambda: traffic_top_users(hours, limit)))
-
+    ttl = 300 if hours > 24 else 60
+    return jsonify(_cached(f"top_users:{hours}:{limit}", ttl, lambda: traffic_top_users(hours, limit)))
 
 @app.route("/api/traffic/export")
 @require_login
@@ -3324,7 +3184,6 @@ def api_traffic_export():
     return Response(out.getvalue(), mimetype="text/csv",
                     headers={"Content-Disposition": f"attachment;filename=traffic_{hours}h.csv"})
 
-
 @app.route("/api/db-stats")
 @require_login
 def api_db_stats():
@@ -3339,7 +3198,6 @@ def api_db_stats():
         "snapshot_count": count,
         "oldest":         iran_fmt(oldest) if oldest else None,
     })
-
 
 @app.route("/api/vacuum-db", methods=["POST"])
 @require_login
@@ -3357,7 +3215,6 @@ def api_vacuum_db():
         return jsonify({"ok": True, "saved_mb": saved})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
-
 
 @app.route("/api/clear-history", methods=["POST"])
 @require_login
@@ -3378,7 +3235,6 @@ def api_clear_history():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
-
 @app.route("/api/cleanup/panel-preview")
 @require_login
 def api_panel_preview():
@@ -3387,7 +3243,6 @@ def api_panel_preview():
     if err:
         return jsonify({"ok": False, "error": err}), 500
     return jsonify({"ok": True, "candidates": candidates})
-
 
 @app.route("/api/cleanup/panel-execute", methods=["POST"])
 @require_login
@@ -3403,9 +3258,6 @@ def api_panel_execute():
     deleted = sum(1 for r in results if r["ok"])
     return jsonify({"ok": True, "deleted": deleted, "results": results})
 
-
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
 if __name__ == "__main__":
     init_app_db()
     _ensure_online_log()
@@ -3417,5 +3269,4 @@ if __name__ == "__main__":
         import logging as _log
         _log.getLogger("werkzeug").info("Starting with HTTPS (cert=%s)", tls_cert)
     port = int(get_setting("port", "5000") or 5000)
-    app.run(host="0.0.0.0", port=port, debug=False, ssl_context=ssl_ctx)
-
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True, ssl_context=ssl_ctx)
