@@ -15,6 +15,7 @@ Run without arguments for interactive menu, or pass a command directly:
   boy port   <number>        change dashboard port (auto-restart)
   boy https  on  [--cert <path> --key <path>]   enable HTTPS
   boy https  off             switch back to HTTP
+  boy update                 download latest files from GitHub and restart
   boy help   [command]       show help (optionally for one command)
 """
 
@@ -162,6 +163,35 @@ def cmd_restart():
     head("Restart services"); sep()
     svc_do(SVC_DASH, "restart")
     svc_do(SVC_MON,  "restart")
+    print()
+
+def cmd_update():
+    import urllib.request, urllib.error
+    head("Update xui-monitor"); sep()
+    REPO = "https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main"
+    DIR  = "/opt/xui-monitor"
+    BOM  = b"\xef\xbb\xbf"
+    files = ["dashboard.py", "monitor.py", "boy.py"]
+    info("Downloading latest files from GitHub…")
+    for fn in files:
+        url  = f"{REPO}/{fn}"
+        dest = f"{DIR}/{fn}"
+        try:
+            with urllib.request.urlopen(url, timeout=15) as r:
+                data = r.read()
+            if data.startswith(BOM):
+                data = data[3:]
+            with open(dest, "wb") as f:
+                f.write(data)
+            ok(fn)
+        except urllib.error.URLError as e:
+            fail(f"Download failed ({fn}): {e}")
+        except PermissionError:
+            fail("Permission denied — run as root: sudo boy update")
+    info("Restarting services…")
+    _svc("restart", SVC_DASH)
+    _svc("restart", SVC_MON)
+    ok("Update complete — both services restarted")
     print()
 
 def cmd_remove():
@@ -376,6 +406,8 @@ def cmd_help(topic: str = ""):
     {_c(CYN,'https')} on   [--cert <path> --key <path>]
     {_c(CYN,'https')} off           toggle HTTPS / HTTP
 
+    {_c(CYN,'update')}              download latest files from GitHub and restart
+
     {_c(CYN,'help')}  [command]     show this help or help for a command
 
   {BLD}Examples:{RST}
@@ -399,6 +431,7 @@ MENU_ITEMS = [
     ("Change port",      lambda: cmd_port()),
     ("Enable HTTPS",     lambda: cmd_https(["on"])),
     ("Disable HTTPS",    lambda: cmd_https(["off"])),
+    ("Update",           lambda: cmd_update()),
     ("Remove services",  lambda: cmd_remove()),
     ("Help",             lambda: cmd_help()),
 ]
@@ -442,6 +475,7 @@ def main():
         "pass":    lambda: cmd_pass(rest[0] if rest else ""),
         "port":    lambda: cmd_port(rest[0] if rest else ""),
         "https":   lambda: cmd_https(rest),
+        "update":  lambda: cmd_update(),
         "help":    lambda: cmd_help(rest[0] if rest else ""),
     }
 
