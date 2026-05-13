@@ -94,6 +94,19 @@ _dl() {
 _dl dashboard.py
 _dl monitor.py
 _dl boy.py
+
+# strip UTF-8 BOM if present (Windows editors sometimes add it)
+python3 - << 'PY'
+import os, sys
+for fn in ['dashboard.py', 'monitor.py', 'boy.py']:
+    path = '/opt/xui-monitor/' + fn
+    with open(path, 'rb') as f:
+        data = f.read()
+    if data.startswith(b'\xef\xbb\xbf'):
+        with open(path, 'wb') as f:
+            f.write(data[3:])
+PY
+
 chmod +x "${DIR}/boy.py"
 ln -sf "${DIR}/boy.py" /usr/local/bin/boy
 
