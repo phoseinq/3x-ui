@@ -1510,7 +1510,7 @@ function openView(name){
   const lnk=document.querySelector(`.sb-link[data-view="${name}"]`);
   if(lnk)lnk.classList.add('on');
   if(name==='traffic') refreshTrafficChart();
-  else if(name==='online') loadOnlineChart();
+  else if(name==='online') setTimeout(loadOnlineChart,0);
   else if(name==='restarts') renderRestarts(_lastRestarts);
 }
 
@@ -1648,7 +1648,7 @@ async function refresh(){
 }
 
 document.getElementById('countdown').textContent=_refreshSec;
-let _tChart=null,_tChartHours=0,_tHours=24,_uChart=null;
+let _tChart=null,_tChartHours=0,_tHours=24,_uChart=null,_onlineChart=null,_onlineHours=24;
 (()=>{const v=new URLSearchParams(location.search).get('v');if(v)openView(v);history.replaceState({},'','/');})();
 refresh();
 
@@ -1954,8 +1954,6 @@ async function refreshTrafficChart(){
 }
 setInterval(()=>{if(document.getElementById('view-traffic').classList.contains('active'))refreshTrafficChart();},60000);
 
-let _onlineChart=null;
-
 function fmtDur(sec){
   if(sec<60)return sec+'s';
   if(sec<3600)return Math.floor(sec/60)+'m';
@@ -1989,7 +1987,6 @@ async function refreshOnlineUsers(){
   }catch(e){}
 }
 
-let _onlineHours=24;
 function setOnlineRange(h){
   _onlineHours=h;
   document.querySelectorAll('.tf-btn[id^="obtn-"]').forEach(b=>b.classList.remove('tf-active'));
