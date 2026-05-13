@@ -1,6 +1,7 @@
 ﻿#!/usr/bin/env python3
 """3x-ui Monitor Dashboard"""
 
+import csv
 import hashlib
 import json
 import os
@@ -26,6 +27,7 @@ APP_DB      = "/opt/xui-monitor/app.db"
 TRAFFIC_DB  = "/opt/xui-monitor/traffic.db"
 STATIC_DIR  = "/opt/xui-monitor/static"
 COOKIE_FILE = "/opt/xui-monitor/session.json"
+BACKUP_DIR  = "/opt/xui-monitor/deleted_backup"
 SECRET_KEY  = "xui-monitor-2026-change-me"
 
 app = Flask(__name__, static_folder=STATIC_DIR)
@@ -673,8 +675,14 @@ def _panel_cleanup_loop():
                 candidates, err = fetch_panel_candidates(old_days)
                 if err or not candidates:
                     continue
-                for c in [x for x in candidates if x.get("aged")]:
-                    delete_panel_client(int(c["inbound_id"]), str(c["client_id"]))
+                aged = [x for x in candidates if x.get("aged")]
+                if aged:
+                    bp = _backup_deleted_users(aged)
+                    if bp:
+                        import logging as _log
+                        _log.getLogger(__name__).info("Panel cleanup backup saved: %s (%d users)", bp, len(aged))
+                    for c in aged:
+                        delete_panel_client(int(c["inbound_id"]), str(c["client_id"]))
         except Exception:
             pass
 
@@ -742,7 +750,9 @@ def fetch_panel_candidates(old_days: int = 30):
             quota  = float(c.get("totalGB", 0))
             exp_ms = c.get("expiryTime", 0)
             st     = stats.get(email, {})
-            total  = float(st.get("up", 0)) + float(st.get("down", 0))
+            up     = float(st.get("up", 0))
+            down   = float(st.get("down", 0))
+            total  = up + down
 
             expired    = bool(exp_ms and exp_ms > cap_ms and exp_ms < now_ms)
             over_quota = quota > 0 and total > quota
@@ -756,18 +766,22 @@ def fetch_panel_candidates(old_days: int = 30):
                 continue
             seen.add(cid)
 
-            exp_days = round((now_ms - exp_ms) / 86_400_000) if (exp_ms and exp_ms < now_ms) else 0
+            exp_days    = round((now_ms - exp_ms) / 86_400_000) if (exp_ms and exp_ms < now_ms) else 0
+            expiry_date = datetime.fromtimestamp(exp_ms / 1000).strftime("%Y-%m-%d") if exp_ms else ""
             candidates.append({
                 "inbound_id":   inbound_id,
                 "client_id":    cid,
                 "email":        email,
                 "quota_gb":     round(quota / 1024**3, 2) if quota else 0,
+                "up_gb":        round(up   / 1024**3, 2),
+                "down_gb":      round(down / 1024**3, 2),
                 "total_gb":     round(total / 1024**3, 2),
                 "pct":          round(total / quota * 100) if quota > 0 else 0,
                 "expired":      expired,
                 "over_quota":   over_quota,
                 "aged":         aged,
                 "expired_days": exp_days,
+                "expiry_date":  expiry_date,
             })
     return candidates, None
 
@@ -777,6 +791,25 @@ def delete_panel_client(inbound_id: int, client_id: str) -> tuple:
     if data and data.get("success"):
         return True, "ok"
     return False, (data or {}).get("msg", "unknown error")
+
+
+def _backup_deleted_users(users: list[dict]) -> str:
+    """Write CSV of users about to be deleted. Returns the saved file path."""
+    if not users:
+        return ""
+    Path(BACKUP_DIR).mkdir(parents=True, exist_ok=True)
+    ts   = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    path = f"{BACKUP_DIR}/{ts}.csv"
+    fields = [
+        "email", "client_id", "inbound_id",
+        "quota_gb", "up_gb", "down_gb", "total_gb", "pct",
+        "expiry_date", "expired_days", "expired", "over_quota",
+    ]
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+        w.writeheader()
+        w.writerows(users)
+    return path
 
 BASE_STYLE = r"""
 <style>
@@ -2813,9 +2846,10 @@ async function panelCleanupExecute(){
     const j=await r.json();
     if(j.ok){
       const failed=j.results.filter(r=>!r.ok);
+      const bp=j.backup_path?`\nBackup: ${j.backup_path}`:'';
       dmsg.textContent=failed.length
-        ?`${j.deleted} deleted, ${failed.length} failed`
-        :`Done â€” ${j.deleted} user(s) deleted.`;
+        ?`${j.deleted} deleted, ${failed.length} failed.${bp}`
+        :`Done — ${j.deleted} user(s) deleted.${bp}`;
       dmsg.style.color=failed.length?'var(--amber)':'var(--green)';
       setTimeout(panelCleanupPreview,1200);
     }else{dmsg.textContent='Error: '+(j.error||'unknown');dmsg.style.color='var(--red)';}
@@ -3251,12 +3285,13 @@ def api_panel_execute():
     targets = body.get("targets", [])
     if not targets:
         return jsonify({"ok": False, "error": "No targets specified"}), 400
+    backup_path = _backup_deleted_users(targets)
     results = []
     for t in targets:
         ok, msg = delete_panel_client(int(t["inbound_id"]), str(t["client_id"]))
         results.append({"email": t.get("email", ""), "ok": ok, "msg": msg})
     deleted = sum(1 for r in results if r["ok"])
-    return jsonify({"ok": True, "deleted": deleted, "results": results})
+    return jsonify({"ok": True, "deleted": deleted, "results": results, "backup_path": backup_path})
 
 if __name__ == "__main__":
     init_app_db()
