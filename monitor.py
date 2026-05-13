@@ -54,7 +54,7 @@ def _load_cfg() -> dict:
 def _cfg(key: str) -> str:
     return _load_cfg().get(key, _DEFAULTS.get(key, ""))
 
-def panel_url()      -> str:   return _cfg("panel_url")
+def panel_url()      -> str:   return _cfg("panel_url").rstrip("/")
 def panel_user()     -> str:   return _cfg("panel_user")
 def panel_pass()     -> str:   return _cfg("panel_pass")
 def check_interval() -> int:   return max(10, int(_cfg("check_interval") or 30))

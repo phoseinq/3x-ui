@@ -575,7 +575,7 @@ def fetch_server_stats() -> dict:
     if now - _server_cache["ts"] < 5:
         return _server_cache["data"]
     try:
-        panel_url = get_setting("panel_url", "")
+        panel_url = get_setting("panel_url", "").rstrip("/")
         s = _req.Session()
         try:
             s.cookies.update(json.loads(Path(COOKIE_FILE).read_text()))
@@ -692,7 +692,7 @@ _panel_sess_obj = _req.Session()
 
 def _panel_api(method: str, path: str, **kwargs):
     """Call panel API with auto-reauth on 401. Returns parsed JSON or None."""
-    base = get_setting("panel_url", "")
+    base = get_setting("panel_url", "").rstrip("/")
     if not base:
         return None
     try:
@@ -3097,7 +3097,7 @@ def api_data_range():
 @app.route("/api/debug/online")
 @require_login
 def api_debug_online():
-    panel_url = get_setting("panel_url", "")
+    panel_url = get_setting("panel_url", "").rstrip("/")
     pu = get_setting("panel_user", "")
     pp = get_setting("panel_pass", "")
     out = {"panel_url": panel_url, "steps": []}
