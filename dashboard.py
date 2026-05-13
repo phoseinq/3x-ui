@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """3x-ui Monitor Dashboard"""
 
 import csv

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Boy — management CLI for xui-dashboard & xui-monitor.
 
