@@ -2944,6 +2944,8 @@ def register():
 def login():
     if count_admins() == 0:
         return redirect(url_for("register"))
+    if request.method == "GET" and session.get("logged_in"):
+        return redirect(url_for("index"))
     error = None
     if request.method == "POST":
         u = request.form.get("username", "")
