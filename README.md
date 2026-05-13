@@ -1,403 +1,283 @@
 <div align="center">
 
-# 📊 3x-ui Monitor
-
-<img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
-<img src="https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
-<img src="https://img.shields.io/badge/3x--ui-Compatible-orange?style=for-the-badge" alt="3x-ui">
-<img src="https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge" alt="License">
+# 3x-ui Monitor
 
 **داشبورد مانیتورینگ ترافیک برای پنل‌های 3x-ui**
 
-[English](#english) · [فارسی](#فارسی)
+[مستندات کامل](ADVANCED.md) · [Advanced Docs](ADVANCED.md)
 
 ---
 
 <img width="2559" height="1363" alt="image" src="https://github.com/user-attachments/assets/d5eb19c3-1fe0-4d0a-98f8-18e47b9bf77b" />
 
-
-
 </div>
-
----
-
-## English
-
-### About
-
-**3x-ui Monitor** is a self-hosted web dashboard for [3x-ui](https://github.com/MHSanaei/3x-ui) VPN panels. It shows real-time traffic, online users, server health, and handles automatic quota enforcement — all from a clean dark UI running on your own server.
-
----
-
-### Features
-
-- 📈 **Traffic charts** — Hourly usage graphs per user and total
-- 🟢 **Online users** — Live detection with duration tracking, sorted by longest connected
-- 🖥️ **Server health** — CPU, RAM, disk, and live bandwidth gauges
-- 🔄 **Auto-restart Xray** — Triggers when users exceed their quota (configurable grace allowance)
-- 🧹 **Panel cleanup** — Preview and bulk-delete expired / over-limit / aged users directly from the panel
-- ⏰ **Scheduled cleanup** — Nightly auto-delete of aged accounts at a time you choose
-- 🔒 **HTTPS support** — Optional TLS with your own certificate
-- 🌐 **Timezone-aware** — All timestamps shown in your configured timezone
-- 👤 **Multi-admin** — PBKDF2-hashed admin accounts
-
----
-
-### Requirements & libraries
-
-**System CLI tools** (pre-installed on Ubuntu / Debian):
-
-| Tool | Purpose |
-|---|---|
-| `curl` | Downloads and runs the installer |
-| `pip3` | Installs Python packages (`flask`, `requests`, `tzdata`) |
-| `systemctl` | Manages `xui-dashboard` and `boyitor` services |
-| `journalctl` | Views live service logs |
-
-**Third-party packages** (installed automatically by the installer):
-
-| Package | Version | Purpose |
-|---|---|---|
-| `flask` | latest | Web framework — serves the dashboard UI and API routes |
-| `requests` | latest | HTTP client — communicates with the 3x-ui panel API |
-| `tzdata` | latest | Timezone database — needed for `zoneinfo` on some older Linux systems |
-
-**Standard library** (built into Python, no install needed):
-
-| Module | Purpose |
-|---|---|
-| `sqlite3` | Local database for traffic snapshots and settings |
-| `hashlib` | PBKDF2 password hashing for admin accounts |
-| `threading` | Background threads for monitor and auto-cleanup |
-| `zoneinfo` | Timezone-aware datetime handling (Python 3.9+) |
-| `logging` | Structured log output for the monitor service |
-| `json` | Serialising panel API responses and session cookies |
-| `pathlib` | File path handling |
-| `datetime` | Timestamp formatting |
-| `collections` | `defaultdict` for traffic aggregation |
-| `time`, `os`, `functools` | Utilities |
-
-> The installer handles all third-party packages. You only need `python3` (3.9+) pre-installed.
-
----
-
-### Installation
-
-Run this single command on your Ubuntu / Debian server (as root):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh | sudo bash
-```
-
-If your server needs a SOCKS5 proxy to reach the internet:
-
-```bash
-# inline flag
-curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh | sudo bash -s -- --proxy socks5://1.2.3.4:1080
-
-# with username and password
-curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh | sudo bash -s -- --proxy socks5://user:pass@1.2.3.4:1080
-
-# or via environment variable
-export PROXY=socks5://1.2.3.4:1080
-curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh | sudo bash
-```
-
-The proxy is used for both file downloads (`curl`) and Python package installation (`pip`).
-
-The script will:
-1. Install `flask` and `requests` (via pip, falls back to apt if needed)
-2. Download `dashboard.py` and `monitor.py` to `/opt/boyitor/`
-3. Generate a random secret key
-4. Create and start two systemd services: `xui-dashboard` and `boyitor`
-5. Print your dashboard URL
-
----
-
-### First-time setup
-
-1. Open `http://YOUR_SERVER_IP:5000` in your browser
-2. Register your admin account (first visit only)
-3. Go to **Settings** → enter your 3x-ui panel URL, username, and password
-
----
-
-### Settings reference
-
-| Setting | Description |
-|---|---|
-| Panel URL | Full URL to your 3x-ui panel (e.g. `http://1.2.3.4:2096/path`) |
-| Panel User / Pass | Your 3x-ui login credentials |
-| Check Interval | How often the monitor polls the panel (seconds) |
-| Grace MB | Extra traffic allowed after quota before Xray restarts |
-| Auto-restart Xray | Restart Xray core when a user exceeds their quota |
-| Timezone | Timezone for all displayed times (e.g. `Asia/Tehran`) |
-| TLS / HTTPS | Enable HTTPS with a custom certificate path |
-| Auto Cleanup | Nightly deletion of expired records from local DB |
-| Panel Cleanup | Preview and delete expired / over-limit users from the panel |
-
----
-
-### Services
-
-| Service | Role |
-|---|---|
-| `xui-dashboard` | Flask web UI — listens on port 5000 |
-| `boyitor` | Background poller — checks the panel every N seconds, restarts Xray on quota breach |
-
-Both services start on boot and restart automatically on failure.
-
----
-
-### boy CLI
-
-The installer adds `boy` — a management CLI for controlling the dashboard from the terminal.
-
-Run without arguments to open the **interactive menu**:
-
-```bash
-sudo boy
-```
-
-Or pass a command directly:
-
-```bash
-boy status               # service status + current settings
-boy start                # start both services
-boy stop                 # stop both services
-boy restart              # restart both services
-boy user <new-username>  # change admin username (no restart needed)
-boy pass                 # change admin password — prompts securely (no echo)
-boy port <number>        # change dashboard port (restarts dashboard)
-boy https on --cert /path/fullchain.pem --key /path/privkey.pem
-boy https off            # disable HTTPS (back to HTTP)
-boy remove               # stop, disable, and remove services (data kept)
-boy help [command]       # show help, or detailed help for a command
-```
-
-**Notes:**
-- Run as root (`sudo boy ...`)
-- `boy remove` asks for confirmation before removing anything
-- `boy https on` will prompt for cert/key paths if not passed as flags
-- `boy pass` without an argument prompts for the password without showing it on screen
-
----
-
-### Service logs
-
-```bash
-journalctl -u xui-dashboard -f   # live dashboard logs
-journalctl -u boyitor -f     # live monitor logs
-```
-
----
-
-### License
-
-MIT — see [LICENSE](LICENSE).
 
 ---
 
 <div dir="rtl" align="right">
 
-## فارسی
+## نصب
 
-### درباره پروژه
-
-**3x-ui Monitor** یک داشبورد تحت‌وب است که روی سرور خودتان نصب می‌شود و به پنل [3x-ui](https://github.com/MHSanaei/3x-ui) شما متصل می‌گردد. از طریق این داشبورد می‌توانید مصرف ترافیک کاربران، کاربران آنلاین، وضعیت سرور، و مدیریت خودکار کوتا را در یک رابط تاریک و ساده دنبال کنید.
-
----
-
-### قابلیت‌ها
-
-- 📈 **نمودار ترافیک** — گراف مصرف ساعتی به تفکیک هر کاربر و مجموع کل
-- 🟢 **کاربران آنلاین** — شناسایی لحظه‌ای با نمایش مدت اتصال، مرتب‌شده از بیشترین زمان اتصال
-- 🖥️ **سلامت سرور** — گیج‌های زنده برای پردازنده، حافظه، دیسک و پهنای باند
-- 🔄 **راه‌اندازی مجدد خودکار Xray** — هنگامی که کاربر از کوتایش رد شد فعال می‌شود (با مقدار مجاز قابل تنظیم)
-- 🧹 **پاک‌سازی پنل** — مشاهده و حذف انبوه کاربران منقضی، لیمیت‌شده یا قدیمی مستقیم از پنل
-- ⏰ **زمان‌بند پاک‌سازی** — حذف خودکار شبانه در ساعتی که خودتان تعیین می‌کنید
-- 🔒 **پشتیبانی از HTTPS** — فعال‌سازی اختیاری با گواهینامه دلخواه
-- 🌐 **آگاهی از منطقه زمانی** — تمام زمان‌ها در منطقه زمانی تنظیم‌شده نمایش داده می‌شوند
-- 👤 **چند مدیر** — حساب‌های مدیریتی با رمزنگاری PBKDF2
-
----
-
-### پیش‌نیازها و کتابخانه‌ها
-
-**ابزارهای CLI سیستم** (از پیش روی Ubuntu / Debian نصب هستند):
-
-| ابزار | کاربرد |
-|---|---|
-| `curl` | دانلود و اجرای نصب‌کننده |
-| `pip3` | نصب بسته‌های پایتون (`flask`، `requests`، `tzdata`) |
-| `systemctl` | مدیریت سرویس‌های `xui-dashboard` و `boyitor` |
-| `journalctl` | مشاهده لاگ زنده سرویس‌ها |
-
-**بسته‌های خارجی** (توسط نصب‌کننده به‌طور خودکار نصب می‌شوند):
-
-| بسته | کاربرد |
-|---|---|
-| `flask` | چارچوب وب — رابط کاربری داشبورد و مسیرهای API را ارائه می‌دهد |
-| `requests` | ارتباط با API پنل 3x-ui |
-| `tzdata` | پایگاه داده منطقه‌های زمانی — برای برخی سیستم‌های قدیمی‌تر لینوکس |
-
-**کتابخانه‌های استاندارد** (داخل پایتون، نیاز به نصب ندارند):
-
-| ماژول | کاربرد |
-|---|---|
-| `sqlite3` | پایگاه داده محلی برای ذخیره داده‌های ترافیک و تنظیمات |
-| `hashlib` | رمزنگاری PBKDF2 برای رمز عبور حساب‌های مدیریتی |
-| `threading` | اجرای موازی مانیتور و پاک‌سازی خودکار در پس‌زمینه |
-| `zoneinfo` | مدیریت زمان بر اساس منطقه زمانی (پایتون ۳.۹ به بالا) |
-| `logging` | ثبت رویدادهای سرویس مانیتور |
-| `json` | پردازش پاسخ‌های API پنل و ذخیره نشست |
-| `pathlib` | مدیریت مسیر فایل‌ها |
-| `datetime` | قالب‌بندی زمان‌ها |
-| `collections` | `defaultdict` برای جمع‌بندی ترافیک |
-| `time`, `os`, `functools` | ابزارهای کمکی |
-
-> نصب‌کننده تمام بسته‌های خارجی را خودکار نصب می‌کند. فقط `python3` نسخه ۳.۹ یا بالاتر باید از پیش روی سرور موجود باشد.
-
----
-
-### نصب
-
-این یک دستور را روی سرور Ubuntu یا Debian خود (به عنوان root) اجرا کنید:
+### نصب معمولی
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh | sudo bash
 ```
 
-اگر سرور شما برای دسترسی به اینترنت نیاز به پروکسی دارد:
+---
+
+### نصب با پروکسی (سرور ایران)
+
+سرور ایران بدون پروکسی به GitHub دسترسی ندارد — هم دانلود اسکریپت و هم تمام مراحل نصب باید از طریق پروکسی برود:
 
 ```bash
-# با پرچم مستقیم
-curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh | sudo bash -s -- --proxy socks5://1.2.3.4:1080
+curl -fsSL --proxy socks5://HOST:PORT \
+  https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh \
+  | sudo bash -s -- --proxy socks5://HOST:PORT
+```
 
-# با نام کاربری و رمز عبور
-curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh | sudo bash -s -- --proxy socks5://user:pass@1.2.3.4:1080
+اگه پروکسی یوزر و پسورد داره:
 
-# از طریق متغیر محیطی
-export PROXY=socks5://1.2.3.4:1080
+```bash
+curl -fsSL --proxy socks5://user:pass@HOST:PORT \
+  https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh \
+  | sudo bash -s -- --proxy socks5://user:pass@HOST:PORT
+```
+
+> پروکسی باید هم جلوی `curl` و هم جلوی `bash` بیاد — اسکریپت نصب با همون پروکسی فایل‌ها رو دانلود می‌کنه.
+
+---
+
+### نصب دستی (بدون اسکریپت)
+
+اگه install.sh کار نکرد یا می‌خوای قدم به قدم نصب کنی:
+
+```bash
+# ۱. نصب پیش‌نیازها
+apt install python3 python3-pip -y
+pip3 install flask requests --break-system-packages
+
+# ۲. ساخت پوشه
+mkdir -p /opt/xui-monitor/static
+
+# ۳. دانلود فایل‌ها
+#    اگه پروکسی نیاز داری، قبل از هر curl این رو اضافه کن: --proxy socks5://HOST:PORT
+curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/dashboard.py -o /opt/xui-monitor/dashboard.py
+curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/monitor.py   -o /opt/xui-monitor/monitor.py
+curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/boy.py        -o /opt/xui-monitor/boy.py
+curl -fsSL https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js           -o /opt/xui-monitor/static/chart.min.js
+
+# ۴. کلید امنیتی
+SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+sed -i "s/xui-monitor-2026-change-me/$SECRET/" /opt/xui-monitor/dashboard.py
+
+# ۵. boy CLI
+chmod +x /opt/xui-monitor/boy.py
+ln -sf /opt/xui-monitor/boy.py /usr/local/bin/boy
+
+# ۶. سرویس‌های systemd
+cat > /etc/systemd/system/xui-dashboard.service << 'EOF'
+[Unit]
+Description=3x-ui Traffic Dashboard
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/xui-monitor/dashboard.py
+WorkingDirectory=/opt/xui-monitor
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /etc/systemd/system/xui-monitor.service << 'EOF'
+[Unit]
+Description=3x-ui Traffic Monitor
+After=network.target xui-dashboard.service
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/xui-monitor/monitor.py
+WorkingDirectory=/opt/xui-monitor
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# ۷. راه‌اندازی
+systemctl daemon-reload
+systemctl enable xui-dashboard xui-monitor
+systemctl start xui-dashboard xui-monitor
+```
+
+---
+
+## راه‌اندازی اولیه
+
+۱. مرورگر را باز کنید: `http://IP_سرور:5000`
+۲. حساب مدیر بسازید (فقط بار اول)
+۳. به **Settings** بروید و آدرس پنل 3x-ui، نام کاربری و رمز را وارد کنید
+
+---
+
+## دستورات boy
+
+```bash
+boy              # منوی تعاملی
+boy status       # وضعیت سرویس‌ها
+boy restart      # ری‌استارت
+boy update       # آپدیت به آخرین نسخه
+boy user <نام>   # تغییر یوزرنیم مدیر
+boy pass         # تغییر پسورد (بدون نمایش روی صفحه)
+boy port <عدد>   # تغییر پورت داشبورد
+boy https on --cert /path/cert.pem --key /path/key.pem
+boy https off    # غیرفعال کردن HTTPS
+boy remove       # حذف سرویس‌ها (داده‌ها حفظ می‌شوند)
+```
+
+> همه دستورات باید به عنوان root اجرا شوند: `sudo boy ...`
+
+---
+
+## لاگ‌ها
+
+```bash
+journalctl -u xui-dashboard -f
+journalctl -u xui-monitor -f
+```
+
+</div>
+
+---
+
+## Installation
+
+### Standard
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh | sudo bash
 ```
 
-پروکسی هم برای دانلود فایل‌ها (`curl`) و هم برای نصب بسته‌های پایتون (`pip`) استفاده می‌شود.
+### With SOCKS5 proxy
 
-این دستور به ترتیب:
-۱. بسته‌های `flask` و `requests` را نصب می‌کند (از pip، در صورت نیاز از apt)
-۲. فایل‌های برنامه را در `/opt/boyitor/` دانلود می‌کند
-۳. یک کلید امنیتی تصادفی تولید می‌کند
-۴. دو سرویس سیستمی `xui-dashboard` و `boyitor` را می‌سازد و راه‌اندازی می‌کند
-۵. آدرس داشبورد را نمایش می‌دهد
-
----
-
-### راه‌اندازی اولیه
-
-۱. مرورگر را باز کنید و به آدرس `http://آی‌پی_سرور:5000` بروید
-۲. حساب مدیر خود را بسازید (فقط بار اول)
-۳. به بخش **تنظیمات** بروید و آدرس پنل 3x-ui، نام کاربری و رمز عبور را وارد کنید
-
----
-
-### راهنمای تنظیمات
-
-| تنظیم | توضیح |
-|---|---|
-| آدرس پنل | آدرس کامل پنل 3x-ui (مثلاً `http://1.2.3.4:2096/path`) |
-| نام کاربری / رمز پنل | اطلاعات ورود به پنل 3x-ui |
-| فاصله بررسی | هر چند ثانیه یک‌بار پنل بررسی شود |
-| مجاز اضافی | مقدار ترافیک اضافه مجاز بعد از کوتا (مگابایت) قبل از راه‌اندازی مجدد |
-| راه‌اندازی مجدد Xray | هنگام عبور کاربر از کوتا، Xray را راه‌اندازی مجدد کند |
-| منطقه زمانی | منطقه زمانی برای نمایش تمام زمان‌ها (مثلاً `Asia/Tehran`) |
-| HTTPS | فعال‌سازی اتصال امن با گواهینامه دلخواه |
-| پاک‌سازی خودکار | حذف شبانه رکوردهای قدیمی از پایگاه داده محلی |
-| پاک‌سازی پنل | مشاهده و حذف کاربران منقضی یا لیمیت‌شده مستقیم از پنل |
-
----
-
-### سرویس‌ها
-
-| سرویس | نقش |
-|---|---|
-| `xui-dashboard` | رابط تحت‌وب — روی درگاه ۵۰۰۰ اجرا می‌شود |
-| `boyitor` | پردازش پس‌زمینه — هر چند ثانیه پنل را بررسی می‌کند و در صورت تجاوز از کوتا، Xray را مجدداً راه‌اندازی می‌کند |
-
-هر دو سرویس با راه‌اندازی سیستم شروع می‌شوند و در صورت خطا به‌طور خودکار مجدداً راه‌اندازی می‌شوند.
-
----
-
-### ابزار مدیریتی boy
-
-نصب‌کننده دستور `boy` را در اختیار می‌گذارد — یک ابزار مدیریتی برای کنترل داشبورد از طریق خط فرمان.
-
-اجرا بدون آرگومان **منوی تعاملی** را باز می‌کند:
+On restricted servers (e.g. Iran), even the initial `curl` needs a proxy — both the script download and all install steps must go through it:
 
 ```bash
-sudo boy
+curl -fsSL --proxy socks5://HOST:PORT \
+  https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh \
+  | sudo bash -s -- --proxy socks5://HOST:PORT
 ```
 
-یا می‌توانید دستور را مستقیماً بدهید:
+With username and password:
 
 ```bash
-boy status               # نمایش وضعیت سرویس‌ها و تنظیمات جاری
-boy start                # راه‌اندازی هر دو سرویس
-boy stop                 # توقف هر دو سرویس
-boy restart              # راه‌اندازی مجدد هر دو سرویس
-boy user <نام-کاربری>    # تغییر نام کاربری مدیر (نیاز به راه‌اندازی مجدد ندارد)
-boy pass                 # تغییر رمز عبور — بدون نمایش روی صفحه
-boy port <عدد>           # تغییر درگاه داشبورد (داشبورد مجدداً راه‌اندازی می‌شود)
-boy https on --cert /path/fullchain.pem --key /path/privkey.pem
-boy https off            # غیرفعال‌سازی HTTPS (بازگشت به HTTP)
-boy remove               # توقف، غیرفعال‌سازی و حذف سرویس‌ها (داده‌ها حفظ می‌شوند)
-boy help [دستور]         # راهنما، یا راهنمای تفصیلی برای یک دستور
+curl -fsSL --proxy socks5://user:pass@HOST:PORT \
+  https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh \
+  | sudo bash -s -- --proxy socks5://user:pass@HOST:PORT
 ```
 
-**نکات:**
-- به عنوان root اجرا کنید (`sudo boy ...`)
-- دستور `boy remove` قبل از حذف تأییدیه می‌خواهد
-- دستور `boy https on` در صورت عدم ارائه مسیر گواهینامه، آن را می‌پرسد
-- دستور `boy pass` بدون آرگومان، رمز را بدون نمایش روی صفحه می‌پرسد
-
----
-
-### لاگ سرویس‌ها
+### Manual install
 
 ```bash
-journalctl -u xui-dashboard -f   # لاگ زنده داشبورد
-journalctl -u boyitor -f     # لاگ زنده مانیتور
+# 1. Dependencies
+apt install python3 python3-pip -y
+pip3 install flask requests --break-system-packages
+
+# 2. Directory
+mkdir -p /opt/xui-monitor/static
+
+# 3. Download files
+#    Add --proxy socks5://HOST:PORT to each curl if needed
+curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/dashboard.py -o /opt/xui-monitor/dashboard.py
+curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/monitor.py   -o /opt/xui-monitor/monitor.py
+curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/boy.py        -o /opt/xui-monitor/boy.py
+curl -fsSL https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js           -o /opt/xui-monitor/static/chart.min.js
+
+# 4. Secret key
+SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+sed -i "s/xui-monitor-2026-change-me/$SECRET/" /opt/xui-monitor/dashboard.py
+
+# 5. boy CLI
+chmod +x /opt/xui-monitor/boy.py
+ln -sf /opt/xui-monitor/boy.py /usr/local/bin/boy
+
+# 6. Systemd services
+cat > /etc/systemd/system/xui-dashboard.service << 'EOF'
+[Unit]
+Description=3x-ui Traffic Dashboard
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/xui-monitor/dashboard.py
+WorkingDirectory=/opt/xui-monitor
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /etc/systemd/system/xui-monitor.service << 'EOF'
+[Unit]
+Description=3x-ui Traffic Monitor
+After=network.target xui-dashboard.service
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/xui-monitor/monitor.py
+WorkingDirectory=/opt/xui-monitor
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 7. Start
+systemctl daemon-reload
+systemctl enable xui-dashboard xui-monitor
+systemctl start xui-dashboard xui-monitor
 ```
 
 ---
 
-### مجوز
+## First run
 
-این پروژه تحت مجوز MIT منتشر شده — فایل [LICENSE](LICENSE) را ببینید.
+1. Open `http://SERVER_IP:5000` in your browser
+2. Register your admin account (first visit only)
+3. Go to **Settings** → enter your 3x-ui panel URL, username, and password
+
+## boy CLI
+
+```bash
+boy              # interactive menu
+boy status       # service status
+boy restart      # restart services
+boy update       # update to latest version
+boy user <name>  # change admin username
+boy pass         # change admin password
+boy port <num>   # change dashboard port
+boy https on --cert /path/cert.pem --key /path/key.pem
+boy https off    # disable HTTPS
+boy remove       # remove services (data is kept)
+```
+
+> Always run as root: `sudo boy ...`
+
+## Logs
+
+```bash
+journalctl -u xui-dashboard -f
+journalctl -u xui-monitor -f
+```
 
 ---
 
-### مشارکت
+[Advanced docs (features, settings, libraries) →](ADVANCED.md)
 
-خوشحال می‌شویم مشارکت کنید:
-- 🐛 گزارش اشکال
-- 💡 پیشنهاد قابلیت جدید
-- 🔧 ارسال درخواست ادغام
-
----
-
-### حمایت
-
-اگر این پروژه برایتان مفید بود:
-- ⭐ به مخزن ستاره بدهید
-- 📢 با دیگران به اشتراک بگذارید
-
-</div>
-
----
-
-<div align="center">
-
-[گزارش مشکل](https://github.com/phoseinq/3x-ui/issues) · [Report a Bug](https://github.com/phoseinq/3x-ui/issues)
-
-</div>
+MIT License
