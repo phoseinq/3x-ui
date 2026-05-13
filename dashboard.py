@@ -975,6 +975,9 @@ tbody tr:hover{background:#0d172a;box-shadow:inset 3px 0 0 var(--blue)}
 .log-toggle .ldot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;transition:background .18s}
 .log-toggle:hover{color:var(--text);border-color:#334}
 .log-toggle.on{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.45);color:#22c55e}
+.tf-btn{padding:3px 9px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;font-size:.7rem;font-family:inherit;transition:all .15s}
+.tf-btn:hover{color:var(--text);border-color:#334}
+.tf-btn.tf-active{background:rgba(6,182,212,.12);border-color:rgba(6,182,212,.5);color:#06b6d4}
 .log-gate{position:relative;min-height:60px}
 .log-gate-blur{transition:filter .35s,opacity .35s}
 .log-gate-blur.off{filter:blur(5px);opacity:.18;pointer-events:none;user-select:none}
@@ -1442,6 +1445,12 @@ html,body{height:100%;overflow:hidden}
     </div>
     <div class="side-view">
       <div class="chart-card" style="margin-bottom:14px">
+        <div style="display:flex;justify-content:flex-end;gap:4px;margin-bottom:8px">
+          <button onclick="setOnlineRange(6)"   id="obtn-6"   class="tf-btn">6h</button>
+          <button onclick="setOnlineRange(24)"  id="obtn-24"  class="tf-btn tf-active">24h</button>
+          <button onclick="setOnlineRange(72)"  id="obtn-72"  class="tf-btn">3d</button>
+          <button onclick="setOnlineRange(168)" id="obtn-168" class="tf-btn">7d</button>
+        </div>
         <canvas id="online-chart" style="max-height:280px"></canvas>
       </div>
       <div class="log-gate" id="gate-online">
@@ -1980,23 +1989,36 @@ async function refreshOnlineUsers(){
   }catch(e){}
 }
 
+let _onlineHours=24;
+function setOnlineRange(h){
+  _onlineHours=h;
+  document.querySelectorAll('.tf-btn[id^="obtn-"]').forEach(b=>b.classList.remove('tf-active'));
+  const btn=document.getElementById('obtn-'+h);
+  if(btn)btn.classList.add('tf-active');
+  if(_onlineChart){_onlineChart.destroy();_onlineChart=null;}
+  loadOnlineChart();
+}
 async function loadOnlineChart(){
   try{
-    const data=await fetch('/api/online/history').then(r=>r.json());
+    const data=await fetch('/api/online/history?hours='+_onlineHours).then(r=>r.json());
+    const rangeLabel=_onlineHours<=6?'6h':_onlineHours<=24?'24h':_onlineHours<=72?'3d':'7d';
     if(!data.length){
       document.getElementById('online-stats').innerHTML='<span style="font-size:.72rem;color:var(--muted)">Not enough data yet — check back in 30 min.</span>';
     }else{
+      const multiDay=_onlineHours>24;
       const labels=data.map(d=>{
         const dt=new Date(d.ts*1000);
+        if(multiDay) return dt.toLocaleDateString('en-GB',{timeZone:CLIENT_TZ,month:'short',day:'numeric'})
+          +' '+dt.toLocaleTimeString('en-GB',{timeZone:CLIENT_TZ,hour:'2-digit',minute:'2-digit',hour12:false});
         return dt.toLocaleTimeString('en-GB',{timeZone:CLIENT_TZ,hour:'2-digit',minute:'2-digit',hour12:false});
       });
       const counts=data.map(d=>d.count);
       const peak=Math.max(...counts);
       const avg=counts.length?Math.round(counts.reduce((a,b)=>a+b,0)/counts.length):0;
       document.getElementById('online-stats').innerHTML=[
-        {l:'Peak (24h)', v:peak,            c:'#06b6d4'},
-        {l:'Avg (24h)',  v:avg,             c:'#4f8ef7'},
-        {l:'Now',        v:_summary.online, c:'#22c55e'},
+        {l:'Peak ('+rangeLabel+')', v:peak,            c:'#06b6d4'},
+        {l:'Avg ('+rangeLabel+')',  v:avg,             c:'#4f8ef7'},
+        {l:'Now',                   v:_summary.online, c:'#22c55e'},
       ].map(s=>`<div class="stat-box" style="padding:8px 12px"><div class="sv" style="font-size:.85rem;color:${s.c}">${s.v}</div><div class="sl">${s.l}</div></div>`).join('');
       const color='#06b6d4';
       if(_onlineChart){_onlineChart.data.labels=labels;_onlineChart.data.datasets[0].data=counts;_onlineChart.update();}
@@ -2011,7 +2033,7 @@ async function loadOnlineChart(){
               label:c=>'Online: '+c.parsed.y+' users'
             }}},
             scales:{
-              x:{ticks:{color:'#4a637a',font:{size:10},maxRotation:45},grid:{color:'#1a2840'}},
+              x:{ticks:{color:'#4a637a',font:{size:10},maxRotation:45,maxTicksLimit:12},grid:{color:'#1a2840'}},
               y:{ticks:{color:'#4a637a',font:{size:10},stepSize:1,precision:0},
                  grid:{color:'#1a2840'},beginAtZero:true}
             }
@@ -3027,8 +3049,9 @@ def api_online_durations():
 @app.route("/api/online/history")
 @require_login
 def api_online_history():
-    bucket = 1800  # 30-min buckets
-    cutoff = int(time.time()) - 86400
+    hours  = min(max(int(request.args.get("hours", 24)), 1), 168)
+    bucket = 900 if hours <= 6 else 1800 if hours <= 24 else 3600 if hours <= 72 else 7200
+    cutoff = int(time.time()) - hours * 3600
     with traffic_db() as c:
         rows = c.execute(
             "SELECT (ts/:b)*:b AS t, ROUND(AVG(count)) AS cnt "
