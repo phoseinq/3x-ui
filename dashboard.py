@@ -24,6 +24,7 @@ try:
 except ImportError:
     _HAS_ZONEINFO = False
 
+VERSION     = "v1.5.2"
 APP_DB      = "/opt/xui-monitor/app.db"
 TRAFFIC_DB  = "/opt/xui-monitor/traffic.db"
 STATIC_DIR  = "/opt/xui-monitor/static"
@@ -1253,7 +1254,7 @@ def topbar(extra="", page="dashboard", refresh_sel="", username=""):
   <div class="sb-hd">
     <div class="sb-logo">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-      3x-ui Monitor
+      3x-ui Monitor <span style="font-size:.65rem;color:var(--muted);font-weight:400">{VERSION}</span>
     </div>
     <button class="sb-x" onclick="closeSB()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1281,7 +1282,7 @@ def topbar(extra="", page="dashboard", refresh_sel="", username=""):
   </button>
   <a href="/" class="logo">
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-    <span class="logo-text">3x-ui Monitor</span>
+    <span class="logo-text">3x-ui Monitor <span style="font-size:.65rem;color:var(--muted);font-weight:400">{VERSION}</span></span>
   </a>
   {extra}
   <div class="topbar-right">
