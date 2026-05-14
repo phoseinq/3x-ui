@@ -368,7 +368,7 @@ def fetch_online():
                   AND (n.total - o.total) > 10240
                   AND n.enable = 1
             """, (ts_new, ts_old)).fetchall()
-        emails = [r["email"].lower() for r in rows]
+        emails = [r["email"] for r in rows]
         count  = len(emails)
         _online_cache.update({"ts": now, "count": count, "emails": emails})
         now_set  = set(emails)
