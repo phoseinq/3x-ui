@@ -24,7 +24,7 @@ try:
 except ImportError:
     _HAS_ZONEINFO = False
 
-VERSION     = "v1.5.2"
+VERSION     = "v1.5.3"
 APP_DB      = "/opt/xui-monitor/app.db"
 TRAFFIC_DB  = "/opt/xui-monitor/traffic.db"
 STATIC_DIR  = "/opt/xui-monitor/static"
