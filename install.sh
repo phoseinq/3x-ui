@@ -84,6 +84,7 @@ ok "Python packages ready"
 echo
 echo -e "${Y}[2/4] Downloading files to ${DIR}...${N}"
 mkdir -p "$DIR"
+chmod 700 "$DIR"
 
 _dl() {
   info "Downloading $1..."
@@ -177,6 +178,9 @@ if ! systemctl is-active --quiet xui-dashboard; then
   exit 1
 fi
 ok "xui-dashboard is running"
+
+chmod 600 "${DIR}"/*.db "${DIR}/session.json" 2>/dev/null || true
+ok "File permissions secured"
 
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 [[ -z "$IP" ]] && IP="YOUR_SERVER_IP"

@@ -153,11 +153,51 @@ def create_admin(username, password, role="admin"):
             (username, hash_password(password), role),
         )
 
+import secrets as _sec
+
+# ── Rate limiting ─────────────────────────────────────────────────────────────
+_login_attempts: dict = {}
+_login_lock = threading.Lock()
+_RATE_LIMIT  = 5
+_RATE_WINDOW = 300
+
+def _is_rate_limited(ip: str) -> bool:
+    now = time.time()
+    with _login_lock:
+        ts = [t for t in _login_attempts.get(ip, []) if now - t < _RATE_WINDOW]
+        _login_attempts[ip] = ts
+        return len(ts) >= _RATE_LIMIT
+
+def _record_fail(ip: str):
+    now = time.time()
+    with _login_lock:
+        _login_attempts.setdefault(ip, []).append(now)
+
+def _clear_fail(ip: str):
+    with _login_lock:
+        _login_attempts.pop(ip, None)
+
+# ── CSRF ──────────────────────────────────────────────────────────────────────
+def _get_csrf_token() -> str:
+    if "csrf_token" not in session:
+        session["csrf_token"] = _sec.token_hex(16)
+    return session["csrf_token"]
+
+def _csrf_ok() -> bool:
+    token = session.get("csrf_token", "")
+    if not token:
+        return False
+    form_tok   = request.form.get("csrf_token", "")
+    header_tok = request.headers.get("X-CSRF-Token", "")
+    return form_tok == token or header_tok == token
+
 def require_login(f):
     @wraps(f)
     def wrapped(*a, **kw):
         if not session.get("logged_in"):
             return redirect(url_for("login"))
+        if request.method == "POST" and not _csrf_ok():
+            return jsonify({"ok": False, "error": "Invalid CSRF token"}), 403
         return f(*a, **kw)
     return wrapped
 
@@ -1225,6 +1265,7 @@ __STYLE__</head><body>
   <div class="auth-sub">First run — create your admin account</div>
   {% if error %}<div class="err-msg">{{ error }}</div>{% endif %}
   <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-group"><label>Username</label>
       <input name="username" type="text" autocomplete="username" autofocus value="{{ username or '' }}"></div>
     <div class="form-group"><label>Password</label>
@@ -1245,6 +1286,7 @@ __STYLE__</head><body>
   </div>
   {% if error %}<div class="err-msg">{{ error }}</div>{% endif %}
   <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-group"><label>Username</label>
       <input name="username" type="text" autocomplete="username" autofocus></div>
     <div class="form-group"><label>Password</label>
@@ -1489,6 +1531,8 @@ html,body{height:100%;overflow:hidden}
 </div>
 __COMMON_JS__
 <script>
+const _csrf="__CSRF_TOKEN__";
+(()=>{const _f=window.fetch;window.fetch=(u,o={})=>{if(o.method&&o.method.toUpperCase()!=='GET'){o.headers={...(o.headers||{}),'X-CSRF-Token':_csrf};}return _f(u,o);};})();
 let _refreshSec = __REFRESH_SEC__;
 const CLIENT_TZ  = "__TZ__";
 const GB=1073741824, MB=1048576;
@@ -2124,6 +2168,8 @@ __TOPBAR_BACK__
 </div>
 __COMMON_JS__
 <script>
+const _csrf="__CSRF_TOKEN__";
+(()=>{const _f=window.fetch;window.fetch=(u,o={})=>{if(o.method&&o.method.toUpperCase()!=='GET'){o.headers={...(o.headers||{}),'X-CSRF-Token':_csrf};}return _f(u,o);};})();
 const EMAIL=__EMAIL_JSON__;
 const CLIENT_TZ="__TZ__";
 const GB=1073741824,MB=1048576;
@@ -2565,6 +2611,8 @@ __TOPBAR__
 </div>
 __COMMON_JS__
 <script>
+const _csrf="__CSRF_TOKEN__";
+(()=>{const _f=window.fetch;window.fetch=(u,o={})=>{if(o.method&&o.method.toUpperCase()!=='GET'){o.headers={...(o.headers||{}),'X-CSRF-Token':_csrf};}return _f(u,o);};})();
 const CLIENT_TZ="__TZ__";
 setInterval(()=>{
   const el=document.getElementById('clock');
@@ -2874,7 +2922,8 @@ def render_main():
             .replace("__PAGE_SIZE_OPTS__",_page_size_opts(s.get("page_size", "20")))
             .replace("__TZ__",            s.get("timezone", "Asia/Tehran"))
             .replace("__TRAFFIC_LOG__",   s.get("traffic_log_enabled", "0"))
-            .replace("__ONLINE_LOG__",    s.get("online_log_enabled", "0")))
+            .replace("__ONLINE_LOG__",    s.get("online_log_enabled", "0"))
+            .replace("__CSRF_TOKEN__",    _get_csrf_token()))
 
 def render_user(email):
     s = get_all_settings()
@@ -2889,7 +2938,8 @@ def render_user(email):
             .replace("__COMMON_JS__",   COMMON_JS)
             .replace("__TZ__",          s.get("timezone", "Asia/Tehran"))
             .replace("__EMAIL__",       email)
-            .replace("__EMAIL_JSON__",  json.dumps(email)))
+            .replace("__EMAIL_JSON__",  json.dumps(email))
+            .replace("__CSRF_TOKEN__",  _get_csrf_token()))
 
 def render_settings():
     s  = get_all_settings()
@@ -2925,30 +2975,35 @@ def render_settings():
             .replace("__PANEL_CLN_DAYS__", s.get("panel_cleanup_days", "7"))
             .replace("__PANEL_CLN_0__",   " selected" if s.get("panel_cleanup_enabled","0")=="0" else "")
             .replace("__PANEL_CLN_1__",   " selected" if s.get("panel_cleanup_enabled","0")=="1" else "")
-            .replace("__C0__", c0).replace("__C1__", c1))
+            .replace("__C0__", c0).replace("__C1__", c1)
+            .replace("__CSRF_TOKEN__",    _get_csrf_token()))
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if count_admins() > 0:
         return redirect(url_for("login"))
+    csrf_token = _get_csrf_token()
     error = username = ""
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        pw  = request.form.get("password", "")
-        pw2 = request.form.get("password2", "")
-        if not username:       error = "Username is required."
-        elif len(username)<3:  error = "Username must be at least 3 characters."
-        elif not pw:           error = "Password is required."
-        elif len(pw)<6:        error = "Password must be at least 6 characters."
-        elif pw != pw2:        error = "Passwords do not match."
+        if not _csrf_ok():
+            error = "Invalid request. Please refresh and try again."
         else:
-            create_admin(username, pw, role="superadmin")
-            session.permanent    = True
-            session["logged_in"] = True
-            session["username"]  = username
-            return redirect(url_for("index"))
+            username = request.form.get("username", "").strip()
+            pw  = request.form.get("password", "")
+            pw2 = request.form.get("password2", "")
+            if not username:       error = "Username is required."
+            elif len(username)<3:  error = "Username must be at least 3 characters."
+            elif not pw:           error = "Password is required."
+            elif len(pw)<6:        error = "Password must be at least 6 characters."
+            elif pw != pw2:        error = "Passwords do not match."
+            else:
+                create_admin(username, pw, role="superadmin")
+                session.permanent    = True
+                session["logged_in"] = True
+                session["username"]  = username
+                return redirect(url_for("index"))
     return render_template_string(
-        REGISTER_HTML.replace("__STYLE__", BASE_STYLE), error=error, username=username
+        REGISTER_HTML.replace("__STYLE__", BASE_STYLE), error=error, username=username, csrf_token=csrf_token
     )
 
 @app.route("/login", methods=["GET", "POST"])
@@ -2957,18 +3012,27 @@ def login():
         return redirect(url_for("register"))
     if request.method == "GET" and session.get("logged_in"):
         return redirect(url_for("index"))
+    csrf_token = _get_csrf_token()
+    ip    = request.remote_addr or ""
     error = None
     if request.method == "POST":
-        u = request.form.get("username", "")
-        p = request.form.get("password", "")
-        if check_credentials(u, p):
-            session.permanent    = True
-            session["logged_in"] = True
-            session["username"]  = u
-            return redirect(url_for("index"))
-        error = "Wrong username or password."
+        if not _csrf_ok():
+            error = "Invalid request. Please refresh and try again."
+        elif _is_rate_limited(ip):
+            error = "Too many failed attempts. Please wait 5 minutes."
+        else:
+            u = request.form.get("username", "")
+            p = request.form.get("password", "")
+            if check_credentials(u, p):
+                _clear_fail(ip)
+                session.permanent    = True
+                session["logged_in"] = True
+                session["username"]  = u
+                return redirect(url_for("index"))
+            _record_fail(ip)
+            error = "Wrong username or password."
     return render_template_string(
-        LOGIN_HTML.replace("__STYLE__", BASE_STYLE), error=error
+        LOGIN_HTML.replace("__STYLE__", BASE_STYLE), error=error, csrf_token=csrf_token
     )
 
 @app.route("/logout")
