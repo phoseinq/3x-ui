@@ -40,20 +40,23 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"]   = False  # set True when TLS is enabled
 
 def app_db():
-    c = sqlite3.connect(APP_DB)
+    c = sqlite3.connect(APP_DB, timeout=30)
     c.row_factory = sqlite3.Row
     return c
 
 def traffic_db():
-    c = sqlite3.connect(TRAFFIC_DB)
+    c = sqlite3.connect(TRAFFIC_DB, timeout=30)
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
     return c
 
 def _vacuum(db_path: str):
-    c = sqlite3.connect(db_path, isolation_level=None)
+    time.sleep(0.5)  # let active connections close before acquiring exclusive lock
+    c = sqlite3.connect(db_path, isolation_level=None, timeout=30)
     try:
         c.execute("VACUUM")
+    except sqlite3.OperationalError as e:
+        _log.warning("VACUUM skipped (%s): %s", db_path, e)
     finally:
         c.close()
 
