@@ -1269,11 +1269,18 @@ __STYLE__</head><body>
     <div class="form-group"><label>Username</label>
       <input name="username" type="text" autocomplete="username" autofocus value="{{ username or '' }}"></div>
     <div class="form-group"><label>Password</label>
-      <input name="password" type="password" autocomplete="new-password"></div>
+      <div class="pw-wrap"><input id="reg-pw" name="password" type="password" autocomplete="new-password">
+      <button type="button" class="pw-eye" onclick="togglePw('reg-pw',this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
     <div class="form-group"><label>Confirm Password</label>
-      <input name="password2" type="password" autocomplete="new-password"></div>
+      <div class="pw-wrap"><input id="reg-pw2" name="password2" type="password" autocomplete="new-password">
+      <button type="button" class="pw-eye" onclick="togglePw('reg-pw2',this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
     <button class="submit-btn" type="submit">Create Account</button>
   </form>
+<style>.pw-wrap{position:relative;display:flex;align-items:center}
+.pw-wrap input{flex:1;padding-right:36px}
+.pw-eye{position:absolute;right:8px;background:none;border:none;cursor:pointer;color:var(--muted);padding:2px;line-height:0;transition:color .15s}
+.pw-eye:hover{color:var(--text)}</style>
+<script>function togglePw(id,btn){const i=document.getElementById(id);i.type=i.type==='password'?'text':'password';btn.style.opacity=i.type==='text'?'1':'.45';}</script>
 </div></div></body></html>"""
 
 LOGIN_HTML = """<!DOCTYPE html>
@@ -1290,13 +1297,19 @@ __STYLE__</head><body>
     <div class="form-group"><label>Username</label>
       <input name="username" type="text" autocomplete="username" autofocus></div>
     <div class="form-group"><label>Password</label>
-      <input name="password" type="password" autocomplete="current-password"></div>
+      <div class="pw-wrap"><input id="login-pw" name="password" type="password" autocomplete="current-password">
+      <button type="button" class="pw-eye" onclick="togglePw('login-pw',this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
     <button class="submit-btn" id="login-btn" type="submit">Sign in</button>
   </form>
-<style>@keyframes _spin{to{transform:rotate(360deg)}}
+<style>.pw-wrap{position:relative;display:flex;align-items:center}
+.pw-wrap input{flex:1;padding-right:36px}
+.pw-eye{position:absolute;right:8px;background:none;border:none;cursor:pointer;color:var(--muted);padding:2px;line-height:0;transition:color .15s}
+.pw-eye:hover{color:var(--text)}
+@keyframes _spin{to{transform:rotate(360deg)}}
 .btn-spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);
   border-top-color:#fff;border-radius:50%;animation:_spin .65s linear infinite;vertical-align:middle}</style>
 <script>
+function togglePw(id,btn){const i=document.getElementById(id);i.type=i.type==='password'?'text':'password';btn.style.opacity=i.type==='text'?'1':'.45';}
 document.querySelector('form').addEventListener('submit',function(){
   const b=document.getElementById('login-btn');
   b.innerHTML='<span class="btn-spin"></span>';
