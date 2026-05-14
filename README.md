@@ -79,4 +79,12 @@ All tracked files use LF line endings (`git ls-files --eol`).
 
 ---
 
+## Security notes
+
+- **Services run as root** — required to write to `/opt/xui-monitor` and restart services via `systemctl`. Intended for personal VPN servers where root access is already present.
+- **Panel password storage** — stored as plaintext in `app.db`. Protection relies on file permissions (`chmod 600`) set during install. Encrypting it on the same server with a local key would not add meaningful security.
+- **Dashboard access** — bind to a trusted network or use a firewall rule to restrict port 5000 to your IP. TLS is supported via `boy https on`.
+
+---
+
 MIT License
