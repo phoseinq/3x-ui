@@ -56,24 +56,6 @@ curl -fsSL --proxy socks5://user:pass@HOST:PORT \
 curl -fsSL https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh | sudo bash
 ```
 
-### With SOCKS5 proxy
-
-On restricted servers (e.g. Iran), both the initial `curl` and all install steps need the proxy:
-
-```bash
-curl -fsSL --proxy socks5://HOST:PORT \
-  https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh \
-  | sudo bash -s -- --proxy socks5://HOST:PORT
-```
-
-With username and password:
-
-```bash
-curl -fsSL --proxy socks5://user:pass@HOST:PORT \
-  https://raw.githubusercontent.com/phoseinq/3x-ui-monitor/main/install.sh \
-  | sudo bash -s -- --proxy socks5://user:pass@HOST:PORT
-```
-
-[Manual install (without script)](MANUAL.md) · **[Next: First run & settings →](SETUP.md)**
+**[Next: First run & settings →](SETUP.md)**
 
 MIT License
