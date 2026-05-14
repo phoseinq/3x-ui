@@ -2702,21 +2702,30 @@ async function runManualCleanup(){
   const days=parseInt(document.getElementById('manual-days')?.value)||7;
   const btn=document.getElementById('btn-manual-clean');
   const res=document.getElementById('cleanup-result');
-  btn.disabled=true;res.textContent='Running…';res.style.color='var(--muted)';
+  btn.disabled=true;res.textContent='Starting…';res.style.color='var(--muted)';
   try{
     const r=await fetch('/api/clear-history',{method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({keep_days:days})});
     const j=await r.json();
-    if(j.ok){
-      res.textContent=`Done — ${j.deleted.toLocaleString()} rows deleted (kept last ${days}d)`;
-      res.style.color='#22c55e';
-    }else{
-      res.textContent='Error: '+(j.error||'unknown');res.style.color='var(--red)';
-    }
-  }catch(e){res.textContent='Request failed';res.style.color='var(--red)';}
-  btn.disabled=false;
-  setTimeout(()=>{res.textContent='';},8000);
+    if(!j.ok){res.textContent='Error: '+(j.error||'unknown');res.style.color='var(--red)';btn.disabled=false;return;}
+    res.textContent='Running…';
+    const poll=setInterval(async()=>{
+      const s=await fetch('/api/clear-history/status').then(x=>x.json()).catch(()=>null);
+      if(!s)return;
+      if(s.phase==='deleting'&&s.total>0)
+        res.textContent=`Deleting… ${s.deleted.toLocaleString()} / ${s.total.toLocaleString()}`;
+      else if(s.phase==='compressing')
+        res.textContent='Compressing…';
+      if(!s.running){
+        clearInterval(poll);
+        btn.disabled=false;
+        if(s.error){res.textContent='Error: '+s.error;res.style.color='var(--red)';}
+        else{res.textContent=`Done — ${s.deleted.toLocaleString()} rows deleted`;res.style.color='#22c55e';}
+        setTimeout(()=>{res.textContent='';},8000);
+      }
+    },2000);
+  }catch(e){res.textContent='Request failed';res.style.color='var(--red)';btn.disabled=false;}
 }
 
 updateArCard();updateTlsCard();updateCleanupCard();
