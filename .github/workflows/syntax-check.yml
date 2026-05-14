@@ -1,0 +1,28 @@
+name: Syntax Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Syntax check Python files
+        run: |
+          python3 -m py_compile dashboard.py
+          python3 -m py_compile monitor.py
+          python3 -m py_compile boy.py
+          echo "All files passed syntax check."
+
+      - name: Check install.sh syntax
+        run: bash -n install.sh && echo "install.sh OK"
