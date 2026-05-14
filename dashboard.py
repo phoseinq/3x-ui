@@ -50,6 +50,13 @@ def traffic_db():
     c.execute("PRAGMA journal_mode=WAL")
     return c
 
+def _vacuum(db_path: str):
+    c = sqlite3.connect(db_path, isolation_level=None)
+    try:
+        c.execute("VACUUM")
+    finally:
+        c.close()
+
 def init_app_db():
     with app_db() as c:
         c.execute("""
@@ -664,6 +671,7 @@ def _prune_by_size():
         chunk = max(total // 10, 1000)
         c.execute("""DELETE FROM snapshots WHERE id IN
                      (SELECT id FROM snapshots ORDER BY id ASC LIMIT ?)""", (chunk,))
+    with traffic_db() as c:
         c.execute("VACUUM")
 
 def run_cleanup(days: int) -> int:
@@ -672,8 +680,7 @@ def run_cleanup(days: int) -> int:
     with traffic_db() as c:
         deleted = c.execute("DELETE FROM snapshots WHERE ts < ?", (cutoff,)).rowcount
     if deleted:
-        with traffic_db() as c:
-            c.execute("VACUUM")
+        _vacuum(TRAFFIC_DB)
     return deleted
 
 def _prune_loop():
@@ -3320,10 +3327,8 @@ def api_vacuum_db():
     try:
         before_t = os.path.getsize(TRAFFIC_DB) if os.path.exists(TRAFFIC_DB) else 0
         before_a = os.path.getsize(APP_DB)     if os.path.exists(APP_DB)     else 0
-        with traffic_db() as c:
-            c.execute("VACUUM")
-        with app_db() as c:
-            c.execute("VACUUM")
+        _vacuum(TRAFFIC_DB)
+        _vacuum(APP_DB)
         after_t = os.path.getsize(TRAFFIC_DB) if os.path.exists(TRAFFIC_DB) else 0
         after_a = os.path.getsize(APP_DB)     if os.path.exists(APP_DB)     else 0
         saved = round((before_t + before_a - after_t - after_a) / 1024**2, 2)
@@ -3345,7 +3350,7 @@ def api_clear_history():
                 ).rowcount
             else:
                 deleted = c.execute("DELETE FROM snapshots").rowcount
-            c.execute("VACUUM")
+        _vacuum(TRAFFIC_DB)
         return jsonify({"ok": True, "deleted": deleted})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
