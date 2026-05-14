@@ -1182,6 +1182,27 @@ function toast(msg, err=false){
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3000);
 }
+function _showCleanupBar(deleted,total,phase){
+  let el=document.getElementById('cleanup-progress-wrap');
+  if(!el){
+    el=document.createElement('div');
+    el.id='cleanup-progress-wrap';
+    el.style.cssText='position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 20px;min-width:300px;max-width:420px;z-index:9999;box-shadow:0 4px 24px #0006';
+    document.body.appendChild(el);
+  }
+  const pct=total>0?Math.min(100,Math.round(deleted/total*100)):0;
+  const phaseLabel=phase==='counting'?'Counting rows…':phase==='compressing'?'Compressing database…':`Deleting rows… ${deleted.toLocaleString()} / ${total.toLocaleString()}`;
+  el.innerHTML=`<div style="font-size:.8rem;color:var(--muted);margin-bottom:8px">${phaseLabel}</div>
+    <div style="background:var(--border);border-radius:99px;height:8px;overflow:hidden">
+      <div style="height:8px;border-radius:99px;background:#4f8ef7;transition:width .4s;width:${phase==='compressing'?100:pct}%" id="cleanup-bar"></div>
+    </div>
+    ${phase!=='compressing'?`<div style="font-size:.75rem;color:var(--muted);margin-top:6px;text-align:right">${pct}%</div>`:''}`;
+  if(phase==='compressing'){
+    const bar=document.getElementById('cleanup-bar');
+    if(bar){bar.style.background='#22c55e';bar.style.animation='pulse-bar 1.2s ease-in-out infinite';}
+  }
+}
+function _hideCleanupBar(){const el=document.getElementById('cleanup-progress-wrap');if(el)el.remove();}
 </script>
 <div id="toast" class="toast"></div>
 """
@@ -2709,16 +2730,14 @@ async function runManualCleanup(){
       body:JSON.stringify({keep_days:days})});
     const j=await r.json();
     if(!j.ok){res.textContent='Error: '+(j.error||'unknown');res.style.color='var(--red)';btn.disabled=false;return;}
-    res.textContent='Running…';
+    _showCleanupBar(0,0,'counting');
     const poll=setInterval(async()=>{
       const s=await fetch('/api/clear-history/status').then(x=>x.json()).catch(()=>null);
       if(!s)return;
-      if(s.phase==='deleting'&&s.total>0)
-        res.textContent=`Deleting… ${s.deleted.toLocaleString()} / ${s.total.toLocaleString()}`;
-      else if(s.phase==='compressing')
-        res.textContent='Compressing…';
+      _showCleanupBar(s.deleted,s.total,s.phase);
       if(!s.running){
         clearInterval(poll);
+        _hideCleanupBar();
         btn.disabled=false;
         if(s.error){res.textContent='Error: '+s.error;res.style.color='var(--red)';}
         else{res.textContent=`Done — ${s.deleted.toLocaleString()} rows deleted`;res.style.color='#22c55e';}
@@ -2774,28 +2793,6 @@ async function loadDbStats(){
   }catch(e){}
 }
 loadDbStats();
-
-function _showCleanupBar(deleted,total,phase){
-  let el=document.getElementById('cleanup-progress-wrap');
-  if(!el){
-    el=document.createElement('div');
-    el.id='cleanup-progress-wrap';
-    el.style.cssText='position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 20px;min-width:300px;max-width:420px;z-index:9999;box-shadow:0 4px 24px #0006';
-    document.body.appendChild(el);
-  }
-  const pct=total>0?Math.min(100,Math.round(deleted/total*100)):0;
-  const phaseLabel=phase==='counting'?'Counting rows…':phase==='compressing'?'Compressing database…':`Deleting rows… ${deleted.toLocaleString()} / ${total.toLocaleString()}`;
-  el.innerHTML=`<div style="font-size:.8rem;color:var(--muted);margin-bottom:8px">${phaseLabel}</div>
-    <div style="background:var(--border);border-radius:99px;height:8px;overflow:hidden">
-      <div style="height:8px;border-radius:99px;background:#4f8ef7;transition:width .4s;width:${phase==='compressing'?100:pct}%" id="cleanup-bar"></div>
-    </div>
-    ${phase!=='compressing'?`<div style="font-size:.75rem;color:var(--muted);margin-top:6px;text-align:right">${pct}%</div>`:''}`;
-  if(phase==='compressing'){
-    const bar=document.getElementById('cleanup-bar');
-    if(bar){bar.style.background='#22c55e';bar.style.animation='pulse-bar 1.2s ease-in-out infinite';}
-  }
-}
-function _hideCleanupBar(){const el=document.getElementById('cleanup-progress-wrap');if(el)el.remove();}
 
 async function clearHistory(keepDays){
   const msg=keepDays===0?'Clear ALL traffic history? This cannot be undone.'
