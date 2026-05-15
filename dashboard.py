@@ -1611,6 +1611,7 @@ function openView(name){
   if(name==='traffic') refreshTrafficChart();
   else if(name==='online') setTimeout(loadOnlineChart,0);
   else if(name==='restarts') renderRestarts(_lastRestarts);
+  history.replaceState({}, '', name==='main' ? '/' : '#'+name);
 }
 
 setInterval(()=>{
@@ -1763,7 +1764,7 @@ async function fetchJSON(url,retries=3,delay=2000){
   }
 }
 
-(()=>{const v=new URLSearchParams(location.search).get('v');if(v)openView(v);history.replaceState({},'','/');})();
+(()=>{const v=location.hash.slice(1)||new URLSearchParams(location.search).get('v');if(v&&document.getElementById('view-'+v))openView(v);else history.replaceState({},'','/');})();
 refresh();
 
 function fmtUptime(sec){
