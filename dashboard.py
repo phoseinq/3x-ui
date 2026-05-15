@@ -24,7 +24,7 @@ try:
 except ImportError:
     _HAS_ZONEINFO = False
 
-VERSION     = "v1.5.3"
+VERSION     = "v1.5.4"
 APP_DB      = "/opt/xui-monitor/app.db"
 TRAFFIC_DB  = "/opt/xui-monitor/traffic.db"
 STATIC_DIR  = "/opt/xui-monitor/static"
@@ -1053,7 +1053,7 @@ tbody tr:hover{background:#0d172a;box-shadow:inset 3px 0 0 var(--blue)}
 .log-on-btn:hover{background:rgba(34,197,94,.15)}
 .online-user-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:9px;
   background:var(--card);border:1px solid var(--border);margin-bottom:6px;
-  color:var(--text);text-decoration:none;font-size:.8rem;transition:background .12s,border-color .12s}
+  color:var(--text);text-decoration:none;font-size:.85rem;font-weight:500;transition:background .12s,border-color .12s}
 .online-user-row:hover{background:rgba(6,182,212,.08);border-color:#0e4f6e}
 .online-pulse{width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;
   box-shadow:0 0 0 2px rgba(34,197,94,.25);animation:opluse 2s ease-in-out infinite}
